@@ -356,9 +356,10 @@ function displayOptimizationResults(data) {
         const height = panel.height;
         // Dynamická veľkosť fontu - upravená pre lepšiu čitateľnosť
         const minDim = Math.min(width, height);
-        let fontSize = minDim * 0.18;
-        if (width * height < 100) fontSize *= 0.7; // Zmenšíme font pre malé kúsky
-        fontSize = Math.max(fontSize, 3); // Minimálna veľkosť fontu
+        let fontSize = minDim * 0.25; // Zvýšený násobok
+        if (width * height < 150) fontSize *= 0.8; // Mierne zmenšenie pre menšie kúsky
+        fontSize = Math.max(fontSize, 4); // Zvýšená minimálna veľkosť
+        fontSize = Math.min(fontSize, 14); // Povolená väčšia max veľkosť
 
         svgContent += `
             <g>

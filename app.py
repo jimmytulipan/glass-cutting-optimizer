@@ -288,9 +288,9 @@ def draw_layout_to_buffer(stock_width, stock_height, layout, colors):
         
         # Prispôsobenie veľkosti fontu pre PDF
         min_dim = min(w, h)
-        font_size = min_dim * scale * 6 # Prispôsobená veľkosť fontu
-        font_size = max(font_size, 4) # Minimálna veľkosť
-        font_size = min(font_size, 10) # Maximálna veľkosť
+        font_size = min_dim * scale * 8 # Zvýšený násobok pre PDF
+        font_size = max(font_size, 5) # Zvýšená minimálna veľkosť pre PDF
+        font_size = min(font_size, 12) # Zvýšená maximálna veľkosť pre PDF
         
         ax.text(x + w/2, y + h/2, 
                f'{w:.1f}x{h:.1f}{" (R)" if rotated else ""}', # Jednoduchší text pre PDF

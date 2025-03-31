@@ -455,7 +455,7 @@ body {
 .layout-visualization {
     width: 100%;
     height: auto;
-    max-height: 550px;
+    max-height: 75vh; /* Výrazne zväčšená max výška (viewport height) */
     border: 1px solid var(--border-color);
     background-color: var(--bg-color);
     border-radius: 8px;
@@ -468,7 +468,7 @@ body {
 /* Zmenšenie na menších obrazovkách */
 @media (max-width: 991.98px) {
     .layout-visualization {
-        max-height: 450px;
+        max-height: 60vh; /* Stále relatívne veľké na tabletoch */
     }
     body {
         padding-top: 60px;
@@ -480,7 +480,7 @@ body {
 
 @media (max-width: 767.98px) {
     .layout-visualization {
-        max-height: 350px;
+        max-height: 50vh; /* Menšia výška na mobiloch */
     }
     /* ... ostatné mobilné štýly ... */
 }
