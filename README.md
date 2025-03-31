@@ -1,29 +1,32 @@
 # Optimalizátor Rezania Skla - Webová aplikácia
 
-Webová aplikácia pre optimalizáciu rezania tabúľ skla a kalkuláciu cien. Aplikácia umožňuje užívateľom zadať potrebné rozmery skiel, optimalizovať ich rozloženie na štandardných tabuliach skla a vypočítať celkovú cenu na základe vybraného typu skla.
+## Popis
+Webová aplikácia na optimalizáciu rozloženia skiel na tabuli. Aplikácia počíta najefektívnejšie rozloženie s minimálnym odpadom a poskytuje možnosť cenovej kalkulácie.
 
 ## Funkcie
-
-- Optimalizácia rozloženia skiel na tabuli s minimalizáciou odpadu
-- Vizualizácia optimálneho rozloženia s farebným odlíšením jednotlivých kusov
-- Výpočet ceny na základe vybraného typu skla
-- Ukladanie histórie kalkulácií
-- Responzívny dizajn pre použitie na počítači aj na mobilných zariadeniach
+- Optimalizácia rozloženia skla na tabuli pre minimalizáciu odpadu
+- Vizualizácia rozloženia
+- Kalkulácia ceny podľa typu skla 
+- Ukladanie histórie výpočtov
+- Responzívny dizajn
 
 ## Požiadavky
-
-- Python 3.7 alebo novší
+- Python 3.8+
 - Flask
 - Flask-SQLAlchemy
 - matplotlib
 - numpy
-- Internetový prehliadač s podporou HTML5 a JavaScript
+- Moderný webový prehliadač
 
-## Inštalácia
+## Inštalácia a spustenie (lokálne)
 
-1. Naklonujte alebo stiahnite tento repozitár
+1. Klonujte repozitár:
+   ```
+   git clone https://github.com/vas-username/glass-cutting-optimizer.git
+   cd glass-cutting-optimizer
+   ```
 
-2. Nainštalujte požadované knižnice:
+2. Inštalujte potrebné knižnice:
    ```
    pip install -r requirements.txt
    ```
@@ -33,30 +36,45 @@ Webová aplikácia pre optimalizáciu rezania tabúľ skla a kalkuláciu cien. A
    python app.py
    ```
 
-4. Otvorte webový prehliadač a prejdite na adresu:
-   ```
-   http://localhost:5000
-   ```
+4. Otvorte webový prehliadač a navštívte `http://localhost:5000`
+
+## Nasadenie na Vercel
+
+1. Pripravte svoj GitHub repozitár:
+   - Vytvorte nový repozitár na GitHube
+   - Nastavte origin a push:
+     ```
+     git remote add origin https://github.com/vas-username/glass-cutting-optimizer.git
+     git push -u origin master
+     ```
+
+2. Nasadenie na Vercel:
+   - Zaregistrujte sa na [Vercel](https://vercel.com)
+   - Kliknite na "New Project"
+   - Importujte svoj GitHub repozitár
+   - V nastaveniach projektu nechajte všetko predvolené (Vercel automaticky rozpozná Flask aplikáciu)
+   - Kliknite "Deploy"
+
+3. Po nasadení:
+   - Vercel vám poskytne URL vašej aplikácie (napr. `https://glass-cutting-optimizer.vercel.app`)
+   - Aplikácia je teraz dostupná online pre všetkých užívateľov
 
 ## Použitie
-
-1. Vyberte rozmer tabule skla alebo zadajte vlastné rozmery
-2. Zadajte potrebné rozmery skiel v cm (formát: šírka×výška)
-   - Jeden rozmer: 100x50
-   - Viacero rozmerov: 100x50-200x30-80.5x90.2
-3. Kliknite na tlačidlo "Vypočítať optimálne rozloženie"
-4. Po zobrazení výsledkov optimalizácie vyberte kategóriu a typ skla
-5. Kliknite na "Vypočítať cenu" pre zobrazenie cenovej kalkulácie
+1. Vyberte rozmer tabule (štandardný alebo vlastný)
+2. Zadajte rozmery skiel v jednom z formátov:
+   - Jeden rozmer: `100x50` alebo `83.5x92.2`
+   - Viac rozmerov naraz: `100x50-200x30-80.5x90.2`
+3. Kliknite na "Vypočítať Optimálne Rozloženie"
+4. Prezrite si výsledky optimalizácie
+5. Voliteľne vypočítajte cenu výbratím kategórie a typu skla
 
 ## Databáza
-
-Aplikácia používa SQLite databázu pre ukladanie:
+Aplikácia používa SQLite databázu na ukladanie:
 - Kategórií skla
 - Typov skla a ich cien
-- Histórie kalkulácií
+- Histórie výpočtov
 
-Pri prvom spustení sa automaticky vytvorí databáza s ukážkovými dátami.
+Databáza sa automaticky vytvorí pri prvom spustení aplikácie.
 
-## Príspevky a nahlasovanie chýb
-
-Ak nájdete chybu alebo máte návrh na vylepšenie, vytvorte issue alebo pull request. 
+## Príspevky a hlásenie chýb
+Pre hlásenie chýb alebo navrhnutie vylepšení vytvorte problém (issue) alebo pull request. 
