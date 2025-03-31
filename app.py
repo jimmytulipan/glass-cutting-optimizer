@@ -268,8 +268,8 @@ def get_glass_types():
 def draw_layout_to_buffer(stock_width, stock_height, layout, colors):
     """Vykreslí layout do bufferu v pamäti pre PDF."""
     
-    # Prispôsobenie veľkosti obrázku pre lepšie proporcie v PDF
-    fig_width_cm = 18
+    # Prispôsobenie veľkosti obrázku pre lepšie proporcie v PDF - ZVÄČŠENÉ
+    fig_width_cm = 20 # Väčšia šírka obrázku v PDF
     scale = fig_width_cm / stock_width
     fig_height_cm = stock_height * scale
     
@@ -278,50 +278,44 @@ def draw_layout_to_buffer(stock_width, stock_height, layout, colors):
     
     # Vykreslenie tabule
     ax.add_patch(plt.Rectangle((0, 0), stock_width, stock_height, 
-                             fill=False, color='black', linewidth=1))
+                             fill=True, facecolor='#DDDDDD', edgecolor='black', linewidth=1)) # Svetlo šedé pozadie
     
     # Vykreslenie panelov
     for i, panel in enumerate(layout):
         x, y, w, h, rotated = panel['x'], panel['y'], panel['width'], panel['height'], panel['rotated']
         color = colors[i % len(colors)]
-        ax.add_patch(plt.Rectangle((x, y), w, h, fill=True, color=color, alpha=0.7))
+        ax.add_patch(plt.Rectangle((x, y), w, h, fill=True, color=color, alpha=0.8)) # Mierne transparentné
         
-        # Prispôsobenie veľkosti fontu pre PDF
+        # Prispôsobenie veľkosti fontu pre PDF - VÝRAZNÉ ZVÄČŠENIE
         min_dim = min(w, h)
-        font_size = min_dim * scale * 10 # Výrazne zvýšený násobok
-        font_size = max(font_size, 6) # Vyššia minimálna veľkosť písma
-        font_size = min(font_size, 14) # Vyššia maximálna veľkosť písma
+        font_size = min_dim * scale * 15 # Výrazne zvýšený násobok
+        font_size = max(font_size, 7) # Vyššia minimálna veľkosť písma
+        font_size = min(font_size, 20) # Vyššia maximálna veľkosť písma
         
-        # Text s tieňom pre lepšiu čitateľnosť
-        # Najprv pridáme jemný tieň
-        ax.text(x + w/2 + 0.2, y + h/2 + 0.2, 
-               f'{w:.1f}x{h:.1f}{" (R)" if rotated else ""}',
-               horizontalalignment='center',
-               verticalalignment='center',
-               fontsize=font_size,
-               color='black',
-               alpha=0.5,
-               zorder=1) # Tieň pod textom
-               
-        # Potom hlavný text
-        ax.text(x + w/2, y + h/2, 
-               f'{w:.1f}x{h:.1f}{" (R)" if rotated else ""}',
-               horizontalalignment='center',
-               verticalalignment='center',
-               fontsize=font_size,
-               color='white',
-               fontweight='bold',
-               zorder=2) # Hlavný text nad tieňom
+        # Text s obrysom pre lepšiu čitateľnosť
+        text_str = f'{w:.1f}x{h:.1f}{"Ⓡ" if rotated else ""}'
+        text = ax.text(x + w/2, y + h/2, text_str,
+                       horizontalalignment='center',
+                       verticalalignment='center',
+                       fontsize=font_size,
+                       color='white',
+                       fontweight='bold')
+        # Pridanie obrysu pomocou matplotlib PathEffects
+        import matplotlib.patheffects as path_effects
+        text.set_path_effects([
+            path_effects.Stroke(linewidth=0.8, foreground='black'), # Čierny obrys
+            path_effects.Normal()
+        ])
     
     ax.set_xlim(-5, stock_width + 5)
     ax.set_ylim(-5, stock_height + 5)
     ax.set_aspect('equal')
-    plt.title(f'Rozloženie na tabuli {stock_width}x{stock_height} cm', fontsize=10)
+    plt.title(f'Rozloženie na tabuli {stock_width}x{stock_height} cm', fontsize=11, weight='bold') # Väčší nadpis
     plt.axis('off') # Skrytie osí
-    plt.tight_layout(pad=0.5)
+    plt.tight_layout(pad=0.2) # Menší okraj
     
     buf = io.BytesIO()
-    plt.savefig(buf, format='png', dpi=150) # Nižšie DPI pre PDF
+    plt.savefig(buf, format='png', dpi=200) # Vyššie DPI pre PDF
     buf.seek(0)
     plt.close(fig) # Uzavretie figúry
     

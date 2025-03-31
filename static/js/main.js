@@ -338,14 +338,14 @@ function displayOptimizationResults(data) {
     // Odstránenie akéhokoľvek predošlého obsahu a vloženie nového SVG
     optimizationResultDiv.innerHTML = '';
     
-    // Výpočet základných rozmerov pre SVG
-    const containerWidth = optimizationResultDiv.offsetWidth || 600;
-    const containerHeight = window.innerHeight * 0.6; // 60% výšky okna
+    // Výpočet základných rozmerov pre SVG - necháme CSS riadiť výšku
+    const containerWidth = optimizationResultDiv.offsetWidth || 600; 
+    // const containerHeight = window.innerHeight * 0.6; // Odstránené, necháme CSS
     
     // Vytvorenie SVG elementu
     const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svgElement.setAttribute('width', '100%');
-    svgElement.setAttribute('height', containerHeight + 'px');
+    svgElement.setAttribute('height', '100%'); // Výška bude riadená CSS rodiča
     svgElement.setAttribute('viewBox', `0 0 ${sheet.stock_width} ${sheet.stock_height}`);
     svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     svgElement.classList.add('layout-visualization');
@@ -383,22 +383,25 @@ function displayOptimizationResults(data) {
         rectPanel.setAttribute('stroke-width', '0.3');
         svgElement.appendChild(rectPanel);
         
-        // Výpočet optimálnej veľkosti fontu
+        // Výpočet optimálnej veľkosti fontu - VÝRAZNÉ ZVÄČŠENIE
         const minDim = Math.min(width, height);
-        let fontSize = minDim * 0.3; // Ešte väčší násobok
-        if (width * height < 200) fontSize *= 0.9; // Jemnejšie zmenšenie pre malé kúsky
-        fontSize = Math.max(fontSize, 4.5); // Väčšia minimálna veľkosť
-        fontSize = Math.min(fontSize, 16); // Väčšia maximálna veľkosť
+        let fontSize = minDim * 0.45; // Ešte väčší násobok
+        // if (width * height < 200) fontSize *= 0.9; // Odstránené zjednodušenie
+        fontSize = Math.max(fontSize, 7); // VÝRAZNE väčšia minimálna veľkosť
+        fontSize = Math.min(fontSize, 20); // Väčšia maximálna veľkosť
         
-        // Pridanie textu s rozmermi
+        // Pridanie textu s rozmermi a OB RYSOM
         const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         textElement.setAttribute('x', x + width/2);
         textElement.setAttribute('y', y + height/2);
         textElement.setAttribute('dominant-baseline', 'middle');
         textElement.setAttribute('text-anchor', 'middle');
         textElement.setAttribute('font-size', fontSize);
-        textElement.setAttribute('fill', 'white');
-        textElement.setAttribute('style', 'font-weight: 600; filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.7));');
+        textElement.setAttribute('fill', 'white'); // Biela výplň
+        textElement.setAttribute('stroke', 'black'); // Čierny obrys
+        textElement.setAttribute('stroke-width', 0.3); // Hrúbka obrysu
+        textElement.setAttribute('paint-order', 'stroke'); // Vykresliť najprv obrys
+        textElement.setAttribute('style', 'font-weight: 600;'); // Odstránený filter
         textElement.textContent = `${panel.width}x${panel.height}${panel.rotated ? 'Ⓡ' : ''}`;
         svgElement.appendChild(textElement);
     });
