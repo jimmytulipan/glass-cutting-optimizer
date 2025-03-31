@@ -1,0 +1,24 @@
+ssh server@lyra
+cd /home/server/telegram_bot
+
+# Zastavenie bota
+./stop_bot.sh
+
+# Spustenie bota
+./run_bot.sh
+
+# Sledovanie logov
+tail -f logs/bot_log.txt
+
+# Úprava kódu
+nano bot.py
+
+# Po úprave kódu
+./stop_bot.sh
+./run_bot.sh
+
+# Ak treba preinštalovať závislosti
+./stop_bot.sh
+rm -rf venv
+./setup.sh
+./run_bot.sh

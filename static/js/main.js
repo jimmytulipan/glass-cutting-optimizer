@@ -271,16 +271,21 @@ async function handlePriceCalculation(event) {
     let totalArea = optimizationResult.total_area;
     let wastePercentage = optimizationResult.average_waste;
     
-    // Ak hodnoty chýbajú a máme dostupné tabuľky, vypočítame ich
-    if ((!totalArea || !wastePercentage) && optimizationResult.sheets && optimizationResult.sheets.length > 0) {
-        if (!totalArea) {
-            totalArea = optimizationResult.sheets.reduce((sum, sheet) => sum + parseFloat(sheet.area || 0), 0);
-        }
-        
-        if (!wastePercentage) {
-            wastePercentage = optimizationResult.sheets.reduce((sum, sheet) => sum + parseFloat(sheet.waste || 0), 0) / optimizationResult.sheets.length;
-        }
+    // Kontrola a výpočet hodnôt, ak chýbajú
+    if ((!totalArea || isNaN(totalArea) || totalArea <= 0) && optimizationResult.sheets && optimizationResult.sheets.length > 0) {
+        totalArea = optimizationResult.sheets.reduce((sum, sheet) => sum + parseFloat(sheet.area || 0), 0);
+        console.log('Vypočítaná celková plocha:', totalArea);
     }
+    
+    if ((!wastePercentage || isNaN(wastePercentage)) && optimizationResult.sheets && optimizationResult.sheets.length > 0) {
+        const totalWaste = optimizationResult.sheets.reduce((sum, sheet) => sum + parseFloat(sheet.waste || 0), 0);
+        wastePercentage = totalWaste / optimizationResult.sheets.length;
+        console.log('Vypočítaný priemerný odpad:', wastePercentage);
+    }
+    
+    // Nastavenie hodnôt do optimizationResult pre ďalšie použitie
+    optimizationResult.total_area = totalArea;
+    optimizationResult.average_waste = wastePercentage;
     
     console.log('Údaje pre výpočet ceny:', {
         glass_id: glassId,
@@ -508,10 +513,25 @@ function displayOptimizationResults(data) {
     
     console.log('Prijaté dáta z optimalizácie:', data);
     
-    // Kontrola či údaje existujú, inak použijeme predvolené hodnoty
-    const totalSheets = data.total_sheets || (data.sheets ? data.sheets.length : 0);
-    const totalArea = parseFloat(data.total_area) || 0;
-    const averageWaste = parseFloat(data.average_waste) || 0;
+    // Kontrola či údaje existujú, inak ich vypočítame z dostupných dát
+    let totalSheets = data.total_sheets || (data.sheets ? data.sheets.length : 0);
+    let totalArea = parseFloat(data.total_area) || 0;
+    let averageWaste = parseFloat(data.average_waste) || 0;
+    
+    // Ak total_area chýba, vypočítame ho z dát
+    if (!totalArea && data.sheets && data.sheets.length > 0) {
+        totalArea = data.sheets.reduce((sum, sheet) => {
+            return sum + (parseFloat(sheet.area) || 0);
+        }, 0);
+    }
+    
+    // Ak average_waste chýba, vypočítame ho z dát
+    if (!averageWaste && data.sheets && data.sheets.length > 0) {
+        const totalWaste = data.sheets.reduce((sum, sheet) => {
+            return sum + (parseFloat(sheet.waste) || 0);
+        }, 0);
+        averageWaste = totalWaste / data.sheets.length;
+    }
     
     console.log('Spracované súhrnné údaje:', {
         totalSheets: totalSheets,
