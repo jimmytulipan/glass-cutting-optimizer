@@ -46,15 +46,12 @@
 
 /* Hlavné štýly */
 body {
-    background-color: var(--bg-color);
-    color: var(--text-color);
+    background-color: #f5f7fa;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    transition: all 0.3s ease;
 }
 
 .navbar {
-    box-shadow: 0 2px 4px var(--shadow-color);
-    background-color: var(--header-bg) !important;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .navbar-dark .navbar-brand, 
@@ -63,17 +60,17 @@ body {
 }
 
 .card {
-    border-radius: 0.5rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
     border: none;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 4px 6px var(--shadow-color);
-    background-color: var(--card-bg);
-    border: 1px solid var(--card-border);
+    margin-bottom: 20px;
 }
 
 .card-header {
-    border-top-left-radius: 0.5rem !important;
-    border-top-right-radius: 0.5rem !important;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #eee;
+    font-weight: 600;
+    border-radius: 10px 10px 0 0 !important;
 }
 
 .bg-primary {
@@ -119,11 +116,8 @@ body {
 
 /* Štýly pre výsledky */
 .sheet-layout {
-    background-color: var(--sheet-layout-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 0.25rem;
-    padding: 1rem;
-    margin-bottom: 1rem;
+    background-color: #fff;
+    border-radius: 0 0 10px 10px;
 }
 
 .sheet-layout h5 {
