@@ -335,44 +335,76 @@ function displayOptimizationResults(data) {
     document.getElementById('totalArea').textContent = formatNumber(sheet.total_area);
     document.getElementById('wastePercentage').textContent = formatNumber(sheet.waste_percentage);
     
-    let containerWidth = optimizationResultDiv.offsetWidth || 600;
-    let svgWidth = containerWidth;
-    let scale = svgWidth / sheet.stock_width;
-    let svgHeight = sheet.stock_height * scale;
+    // Odstránenie akéhokoľvek predošlého obsahu a vloženie nového SVG
+    optimizationResultDiv.innerHTML = '';
     
-    let svgContent = `
-        <svg width="100%" height="${svgHeight}" viewBox="0 0 ${sheet.stock_width} ${sheet.stock_height}" 
-             preserveAspectRatio="xMidYMid meet" class="layout-visualization">
-            <rect x="0" y="0" width="${sheet.stock_width}" height="${sheet.stock_height}" fill="var(--sheet-layout-bg)" stroke="var(--border-color)" stroke-width="0.5" />
-    `;
+    // Výpočet základných rozmerov pre SVG
+    const containerWidth = optimizationResultDiv.offsetWidth || 600;
+    const containerHeight = window.innerHeight * 0.6; // 60% výšky okna
     
+    // Vytvorenie SVG elementu
+    const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svgElement.setAttribute('width', '100%');
+    svgElement.setAttribute('height', containerHeight + 'px');
+    svgElement.setAttribute('viewBox', `0 0 ${sheet.stock_width} ${sheet.stock_height}`);
+    svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svgElement.classList.add('layout-visualization');
+    
+    // Vytvorenie podkladu tabule
+    const rectBackground = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+    rectBackground.setAttribute('x', '0');
+    rectBackground.setAttribute('y', '0');
+    rectBackground.setAttribute('width', sheet.stock_width);
+    rectBackground.setAttribute('height', sheet.stock_height);
+    rectBackground.setAttribute('fill', 'var(--sheet-layout-bg)');
+    rectBackground.setAttribute('stroke', 'var(--border-color)');
+    rectBackground.setAttribute('stroke-width', '0.5');
+    svgElement.appendChild(rectBackground);
+    
+    // Farby pre jednotlivé panely
     const colors = ['#4a76fd', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6c757d'];
     
+    // Vykreslenie jednotlivých panelov
     sheet.layout.forEach((panel, index) => {
         const color = colors[index % colors.length];
         const x = panel.x;
         const y = panel.y;
         const width = panel.width;
         const height = panel.height;
-        // Dynamická veľkosť fontu - upravená pre lepšiu čitateľnosť
+        
+        // Vytvorenie panelu (obdĺžnika)
+        const rectPanel = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        rectPanel.setAttribute('x', x);
+        rectPanel.setAttribute('y', y);
+        rectPanel.setAttribute('width', width);
+        rectPanel.setAttribute('height', height);
+        rectPanel.setAttribute('fill', color);
+        rectPanel.setAttribute('stroke', 'rgba(255,255,255,0.4)');
+        rectPanel.setAttribute('stroke-width', '0.3');
+        svgElement.appendChild(rectPanel);
+        
+        // Výpočet optimálnej veľkosti fontu
         const minDim = Math.min(width, height);
-        let fontSize = minDim * 0.25; // Zvýšený násobok
-        if (width * height < 150) fontSize *= 0.8; // Mierne zmenšenie pre menšie kúsky
-        fontSize = Math.max(fontSize, 4); // Zvýšená minimálna veľkosť
-        fontSize = Math.min(fontSize, 14); // Povolená väčšia max veľkosť
-
-        svgContent += `
-            <g>
-                <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}" stroke="rgba(255,255,255,0.3)" stroke-width="0.2" />
-                <text x="${x + width/2}" y="${y + height/2}" dominant-baseline="middle" text-anchor="middle" font-size="${fontSize}" fill="white" style="pointer-events: none; font-weight: 500;">
-                    ${panel.width}x${panel.height}${panel.rotated ? 'Ⓡ' : ''}
-                </text>
-            </g>
-        `;
+        let fontSize = minDim * 0.3; // Ešte väčší násobok
+        if (width * height < 200) fontSize *= 0.9; // Jemnejšie zmenšenie pre malé kúsky
+        fontSize = Math.max(fontSize, 4.5); // Väčšia minimálna veľkosť
+        fontSize = Math.min(fontSize, 16); // Väčšia maximálna veľkosť
+        
+        // Pridanie textu s rozmermi
+        const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        textElement.setAttribute('x', x + width/2);
+        textElement.setAttribute('y', y + height/2);
+        textElement.setAttribute('dominant-baseline', 'middle');
+        textElement.setAttribute('text-anchor', 'middle');
+        textElement.setAttribute('font-size', fontSize);
+        textElement.setAttribute('fill', 'white');
+        textElement.setAttribute('style', 'font-weight: 600; filter: drop-shadow(0px 1px 1px rgba(0,0,0,0.7));');
+        textElement.textContent = `${panel.width}x${panel.height}${panel.rotated ? 'Ⓡ' : ''}`;
+        svgElement.appendChild(textElement);
     });
     
-    svgContent += `</svg>`;
-    optimizationResultDiv.innerHTML = svgContent;
+    // Pridanie SVG do DOM
+    optimizationResultDiv.appendChild(svgElement);
 }
 
 function handleStockSizeChange() {

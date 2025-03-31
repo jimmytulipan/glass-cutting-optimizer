@@ -288,16 +288,30 @@ def draw_layout_to_buffer(stock_width, stock_height, layout, colors):
         
         # Prispôsobenie veľkosti fontu pre PDF
         min_dim = min(w, h)
-        font_size = min_dim * scale * 8 # Zvýšený násobok pre PDF
-        font_size = max(font_size, 5) # Zvýšená minimálna veľkosť pre PDF
-        font_size = min(font_size, 12) # Zvýšená maximálna veľkosť pre PDF
+        font_size = min_dim * scale * 10 # Výrazne zvýšený násobok
+        font_size = max(font_size, 6) # Vyššia minimálna veľkosť písma
+        font_size = min(font_size, 14) # Vyššia maximálna veľkosť písma
         
-        ax.text(x + w/2, y + h/2, 
-               f'{w:.1f}x{h:.1f}{" (R)" if rotated else ""}', # Jednoduchší text pre PDF
+        # Text s tieňom pre lepšiu čitateľnosť
+        # Najprv pridáme jemný tieň
+        ax.text(x + w/2 + 0.2, y + h/2 + 0.2, 
+               f'{w:.1f}x{h:.1f}{" (R)" if rotated else ""}',
                horizontalalignment='center',
                verticalalignment='center',
                fontsize=font_size,
-               color='black') # Čierny text pre lepšiu viditeľnosť
+               color='black',
+               alpha=0.5,
+               zorder=1) # Tieň pod textom
+               
+        # Potom hlavný text
+        ax.text(x + w/2, y + h/2, 
+               f'{w:.1f}x{h:.1f}{" (R)" if rotated else ""}',
+               horizontalalignment='center',
+               verticalalignment='center',
+               fontsize=font_size,
+               color='white',
+               fontweight='bold',
+               zorder=2) # Hlavný text nad tieňom
     
     ax.set_xlim(-5, stock_width + 5)
     ax.set_ylim(-5, stock_height + 5)
