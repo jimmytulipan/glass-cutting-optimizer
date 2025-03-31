@@ -31,7 +31,7 @@ else:
     DB_PATH = os.path.abspath('glass_database.db')
 
 # Inicializácia Flask aplikácie
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_TYPE'] = 'filesystem'
