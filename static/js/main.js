@@ -9,6 +9,139 @@ function formatNumber(number, decimals = 2) {
     return parseFloat(number).toFixed(decimals);
 }
 
+// Funkcia pre zobrazenie alertov
+function showAlert(message, type = 'info') {
+    const alertsContainer = document.getElementById('alerts');
+    const alertElement = document.createElement('div');
+    
+    alertElement.className = `alert alert-${type} fade-in`;
+    alertElement.innerHTML = `
+        <div class="d-flex align-items-center">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+            <div>${message}</div>
+        </div>
+    `;
+    
+    alertsContainer.appendChild(alertElement);
+    
+    // Automatické zatvorenie alertu po 5 sekundách
+    setTimeout(() => {
+        alertElement.style.opacity = '0';
+        alertElement.style.transition = 'opacity 0.5s ease';
+        
+        setTimeout(() => {
+            alertsContainer.removeChild(alertElement);
+        }, 500);
+    }, 5000);
+}
+
+// Funkcia pre získanie YouTube prepisu
+function fetchYoutubeTranscript() {
+    const youtubeUrl = document.getElementById('youtubeUrl').value.trim();
+    
+    if (!youtubeUrl) {
+        showAlert('Zadajte URL YouTube videa', 'warning');
+        return;
+    }
+    
+    // Overenie, či URL je platné YouTube video
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/(watch\?v=|embed\/|v\/|shorts\/)?([a-zA-Z0-9_-]{11})(\S*)?$/;
+    const match = youtubeUrl.match(youtubeRegex);
+    
+    if (!match) {
+        showAlert('Neplatné YouTube URL', 'danger');
+        return;
+    }
+    
+    const videoId = match[5];
+    
+    // Zobraziť načítavanie
+    showAlert('Prebieha získavanie prepisu...', 'info');
+    
+    // Namiesto reálneho volania API (keďže nemáme backendovú podporu)
+    // Len zobrazíme ukážkovú správu o tom, čo by sa malo stať
+    setTimeout(() => {
+        showAlert('Funkcia získania YouTube prepisu nie je momentálne dostupná', 'warning');
+    }, 2000);
+    
+    // Pridanie do histórie
+    addToHistory(`YouTube: ${videoId}`, 'Požiadavka na prepis YouTube videa');
+}
+
+// Funkcia pre pridanie do histórie
+function addToHistory(title, description) {
+    const historyContainer = document.getElementById('historyContainer');
+    const emptyHistory = document.getElementById('emptyHistory');
+    
+    if (emptyHistory) {
+        emptyHistory.remove();
+    }
+    
+    const historyItem = document.createElement('div');
+    historyItem.className = 'history-item mb-3 p-2 border-bottom';
+    historyItem.innerHTML = `
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h6 class="mb-1">${title}</h6>
+                <p class="small text-muted mb-0">${description}</p>
+            </div>
+            <small class="text-muted">${new Date().toLocaleTimeString()}</small>
+        </div>
+    `;
+    
+    historyContainer.prepend(historyItem);
+    
+    // Uloženie do localStorage pre persistenciu
+    saveHistoryToLocalStorage();
+}
+
+// Funkcia pre uloženie histórie do localStorage
+function saveHistoryToLocalStorage() {
+    const historyContainer = document.getElementById('historyContainer');
+    const historyItems = historyContainer.querySelectorAll('.history-item');
+    
+    const history = Array.from(historyItems).map(item => {
+        return {
+            title: item.querySelector('h6').textContent,
+            description: item.querySelector('p').textContent,
+            time: item.querySelector('small').textContent
+        };
+    });
+    
+    localStorage.setItem('glassCalculatorHistory', JSON.stringify(history));
+}
+
+// Funkcia pre načítanie histórie z localStorage
+function loadHistoryFromLocalStorage() {
+    const historyJson = localStorage.getItem('glassCalculatorHistory');
+    
+    if (historyJson) {
+        const history = JSON.parse(historyJson);
+        const historyContainer = document.getElementById('historyContainer');
+        const emptyHistory = document.getElementById('emptyHistory');
+        
+        if (history.length > 0 && emptyHistory) {
+            emptyHistory.remove();
+        }
+        
+        history.forEach(item => {
+            const historyItem = document.createElement('div');
+            historyItem.className = 'history-item mb-3 p-2 border-bottom';
+            historyItem.innerHTML = `
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h6 class="mb-1">${item.title}</h6>
+                        <p class="small text-muted mb-0">${item.description}</p>
+                    </div>
+                    <small class="text-muted">${item.time}</small>
+                </div>
+            `;
+            
+            historyContainer.appendChild(historyItem);
+        });
+    }
+}
+
 // Funkcie pre správu témy
 function setTheme(theme) {
     document.documentElement.setAttribute('data-theme', theme);
@@ -113,9 +246,18 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Načítanie kategórií skla
     loadGlassCategories();
+    
+    // Načítanie histórie
+    loadHistoryFromLocalStorage();
 });
 
 function initEventListeners() {
+    // Tlačidlo pre získanie YouTube prepisu
+    const fetchTranscriptBtn = document.getElementById('fetchTranscriptBtn');
+    if (fetchTranscriptBtn) {
+        fetchTranscriptBtn.addEventListener('click', fetchYoutubeTranscript);
+    }
+    
     // Formulár pre optimalizáciu
     document.getElementById('optimizeForm').addEventListener('submit', handleOptimizeSubmit);
     
@@ -131,9 +273,11 @@ function initEventListeners() {
     // Tlačidlo pre vymazanie histórie
     document.getElementById('clearHistory').addEventListener('click', function() {
         if (confirm('Skutočne chcete vymazať históriu kalkulácií?')) {
-            localStorage.removeItem('glassCalculations');
-            document.getElementById('historyContainer').innerHTML = 
-                '<div class="text-center text-muted py-3" id="emptyHistory">Zatiaľ nemáte žiadne kalkulácie</div>';
+            const historyContainer = document.getElementById('historyContainer');
+            historyContainer.innerHTML = 
+                '<div class="text-center text-muted py-3" id="emptyHistory">Zatiaľ žiadna história</div>';
+            
+            localStorage.removeItem('glassCalculatorHistory');
         }
     });
 }
@@ -204,6 +348,9 @@ function handleOptimizeSubmit(event) {
         
         // Posunieme sa na výsledky
         document.getElementById('resultContainer').scrollIntoView({ behavior: 'smooth' });
+        
+        // Pridanie do histórie
+        addToHistory('Optimalizácia skla', `Rozmery tabule: ${stockWidth}x${stockHeight} cm`);
     })
     .catch(error => {
         console.error('Chyba:', error);
@@ -227,11 +374,11 @@ function displayOptimizationResults(data) {
     
     let svgContent = `
         <svg width="${svgWidth}" height="${svgHeight}" class="layout-visualization">
-            <rect x="0" y="0" width="${321 * scale}" height="${225 * scale}" fill="none" stroke="black" stroke-width="2" />
+            <rect x="0" y="0" width="${321 * scale}" height="${225 * scale}" fill="none" stroke="white" stroke-width="2" />
     `;
     
     // Farby pre panely
-    const colors = ['#a6d8e2', '#c4e0b2', '#f8cbad', '#ffe699', '#b4c6e7', '#d9d9d9'];
+    const colors = ['#4a76fd', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6c757d'];
     
     // Pridanie jednotlivých panelov
     sheet.layout.forEach((panel, index) => {
@@ -242,115 +389,15 @@ function displayOptimizationResults(data) {
         const height = panel.height * scale;
         
         svgContent += `
-            <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}" stroke="white" stroke-width="1" />
-            <text x="${x + width/2}" y="${y + height/2}" dominant-baseline="middle" text-anchor="middle" font-size="10">
+            <rect x="${x}" y="${y}" width="${width}" height="${height}" fill="${color}" stroke="rgba(255,255,255,0.5)" stroke-width="1" />
+            <text x="${x + width/2}" y="${y + height/2}" dominant-baseline="middle" text-anchor="middle" font-size="10" fill="white">
                 ${panel.width}x${panel.height}${panel.rotated ? ' (R)' : ''}
             </text>
         `;
     });
     
-    svgContent += '</svg>';
+    svgContent += `</svg>`;
     resultContainer.innerHTML = svgContent;
-    
-    // Uloženie kalkulácie do histórie
-    saveCalculationToHistory(data);
-}
-
-function handlePriceCalculation(event) {
-    event.preventDefault();
-    
-    if (!optimizationResult) {
-        showAlert('Najprv je potrebné vykonať optimalizáciu rozloženia.', 'warning');
-        return;
-    }
-    
-    // Získanie vybraného typu skla
-    const glassSelect = document.getElementById('glassType');
-    const glassType = glassSelect.options[glassSelect.selectedIndex].text;
-    const glassId = glassSelect.value;
-    
-    // Získanie celkovej plochy a odpadu z optimalizácie
-    const sheet = optimizationResult.sheets[0];
-    const totalArea = sheet.total_area;
-    const wastePercentage = sheet.waste_percentage;
-    
-    console.log('Údaje pre výpočet ceny:', {
-        glassType: glassType,
-        area: totalArea,
-        wastePercentage: wastePercentage
-    });
-    
-    // Odoslanie požiadavky na server
-    fetch(`${apiBaseUrl}/api/calculate-price`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-            glassType: glassType,
-            glassId: glassId,
-            area: totalArea,
-            wastePercentage: wastePercentage
-        })
-    })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Chyba pri komunikácii so serverom');
-        }
-        return response.json();
-    })
-    .then(data => {
-        console.log('Prijaté dáta z API (cena):', data);
-        
-        if (data.success && data.price) {
-            displayPriceCalculation(data.price);
-        } else {
-            showAlert('Nepodarilo sa vypočítať cenu.', 'warning');
-        }
-    })
-    .catch(error => {
-        console.error('Chyba:', error);
-        showAlert(`Nastala chyba: ${error.message}`, 'danger');
-    });
-}
-
-function displayPriceCalculation(data) {
-    // Zobrazenie výsledku výpočtu ceny
-    document.getElementById('priceResult').classList.remove('d-none');
-    
-    // Nastavenie základných údajov
-    const glassName = data.glass_name || '-';
-    const area = data.area || 0;
-    const areaPrice = data.area_price || 0;
-    const wasteArea = data.waste_area || 0;
-    const wastePrice = data.waste_price || 0;
-    
-    // Výpočet celkovej ceny
-    const totalPrice = areaPrice + wastePrice;
-    
-    // Logovanie pre účely ladenia
-    console.log('Cena za sklo:', {
-        glassName: glassName,
-        area: area,
-        areaPrice: areaPrice,
-        wasteArea: wasteArea,
-        wastePrice: wastePrice,
-        totalPrice: totalPrice
-    });
-    
-    // Nastavenie hodnôt do elementov
-    document.getElementById('glassName').textContent = glassName;
-    document.getElementById('area').textContent = formatNumber(area);
-    document.getElementById('areaPrice').textContent = formatNumber(areaPrice);
-    document.getElementById('wasteArea').textContent = formatNumber(wasteArea);
-    document.getElementById('wastePrice').textContent = formatNumber(wastePrice);
-    document.getElementById('totalPrice').textContent = formatNumber(totalPrice);
-    
-    // Posunieme sa na výsledky
-    document.getElementById('priceResult').scrollIntoView({ behavior: 'smooth' });
-    
-    // Uloženie kalkulácie do histórie
-    updateCalculationWithPrice(data);
 }
 
 function handleStockSizeChange() {
@@ -371,31 +418,26 @@ function loadGlassCategories() {
             const categorySelect = document.getElementById('glassCategory');
             categorySelect.innerHTML = '';
             
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                categorySelect.appendChild(option);
+            });
+            
+            // Po načítaní kategórií načítame typy skla pre prvú kategóriu
             if (categories.length > 0) {
-                categories.forEach(category => {
-                    const option = document.createElement('option');
-                    option.value = category.id;
-                    option.textContent = category.name;
-                    categorySelect.appendChild(option);
-                });
-                
-                // Načítame typy skla pre prvú kategóriu
                 handleCategoryChange();
-            } else {
-                categorySelect.innerHTML = '<option value="">Žiadne kategórie skla</option>';
             }
         })
         .catch(error => {
             console.error('Chyba pri načítaní kategórií skla:', error);
-            document.getElementById('glassCategory').innerHTML = '<option value="">Chyba pri načítaní</option>';
+            showAlert('Nepodarilo sa načítať kategórie skla.', 'danger');
         });
 }
 
 function handleCategoryChange() {
-    const categorySelect = document.getElementById('glassCategory');
-    const categoryId = categorySelect.value;
-    
-    if (!categoryId) return;
+    const categoryId = document.getElementById('glassCategory').value;
     
     fetch(`${apiBaseUrl}/api/get-glass-types?categoryId=${categoryId}`)
         .then(response => response.json())
@@ -403,125 +445,90 @@ function handleCategoryChange() {
             const typeSelect = document.getElementById('glassType');
             typeSelect.innerHTML = '';
             
-            if (types.length > 0) {
-                types.forEach(type => {
-                    const option = document.createElement('option');
-                    option.value = type.id;
-                    option.textContent = `${type.name} (${formatNumber(type.price_per_m2)} €/m²)`;
-                    typeSelect.appendChild(option);
-                });
-            } else {
-                typeSelect.innerHTML = '<option value="">Žiadne typy skla</option>';
-            }
+            types.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type.id;
+                option.textContent = `${type.name} (${type.price_per_m2}€/m²)`;
+                option.dataset.name = type.name;
+                typeSelect.appendChild(option);
+            });
         })
         .catch(error => {
             console.error('Chyba pri načítaní typov skla:', error);
-            document.getElementById('glassType').innerHTML = '<option value="">Chyba pri načítaní</option>';
+            showAlert('Nepodarilo sa načítať typy skla.', 'danger');
         });
 }
 
-function saveCalculationToHistory(data) {
-    // Získanie existujúcej histórie z localStorage
-    let history = JSON.parse(localStorage.getItem('glassCalculations') || '[]');
+function handlePriceCalculation(event) {
+    event.preventDefault();
     
-    // Pridanie novej kalkulácie
-    const newCalculation = {
-        id: Date.now(),
-        date: new Date().toISOString(),
-        dimensions: document.getElementById('dimensions').value,
-        totalArea: data.sheets[0].total_area,
-        wastePercentage: data.sheets[0].waste_percentage,
-        stockWidth: document.getElementById('stockSize').value === 'custom' 
-            ? parseFloat(document.getElementById('customWidth').value) 
-            : 321,
-        stockHeight: document.getElementById('stockSize').value === 'custom' 
-            ? parseFloat(document.getElementById('customHeight').value) 
-            : 225,
-    };
-    
-    // Pridanie na začiatok poľa (najnovšie záznamy budú prvé)
-    history.unshift(newCalculation);
-    
-    // Obmedzenie dĺžky histórie
-    if (history.length > 10) {
-        history = history.slice(0, 10);
-    }
-    
-    // Uloženie späť do localStorage
-    localStorage.setItem('glassCalculations', JSON.stringify(history));
-    
-    // Aktualizácia zobrazenia histórie
-    displayHistory();
-}
-
-function updateCalculationWithPrice(priceData) {
-    // Získanie existujúcej histórie z localStorage
-    let history = JSON.parse(localStorage.getItem('glassCalculations') || '[]');
-    
-    if (history.length > 0) {
-        // Aktualizácia najnovšej kalkulácie
-        history[0].glassName = priceData.glass_name;
-        history[0].areaPrice = priceData.area_price;
-        history[0].wastePrice = priceData.waste_price;
-        history[0].totalPrice = priceData.area_price + priceData.waste_price;
-        
-        // Uloženie späť do localStorage
-        localStorage.setItem('glassCalculations', JSON.stringify(history));
-        
-        // Aktualizácia zobrazenia histórie
-        displayHistory();
-    }
-}
-
-function displayHistory() {
-    const historyContainer = document.getElementById('historyContainer');
-    const history = JSON.parse(localStorage.getItem('glassCalculations') || '[]');
-    
-    if (history.length === 0) {
-        historyContainer.innerHTML = '<div class="text-center text-muted py-3" id="emptyHistory">Zatiaľ nemáte žiadne kalkulácie</div>';
+    // Kontrola, či máme výsledky optimalizácie
+    if (!optimizationResult || !optimizationResult.sheets) {
+        showAlert('Najprv spustite optimalizáciu rozloženia.', 'warning');
         return;
     }
     
-    let htmlContent = '';
-    history.forEach(calc => {
-        // Formátovanie dátumu
-        const date = new Date(calc.date);
-        const formattedDate = `${date.getDate()}.${date.getMonth() + 1}.${date.getFullYear()} ${date.getHours()}:${(date.getMinutes() < 10 ? '0' : '') + date.getMinutes()}`;
-        
-        // Vytvorenie záznamu
-        htmlContent += `<div class="history-item mb-3 p-2 border-bottom">`;
-        htmlContent += `<div class="small text-muted">${formattedDate}</div>`;
-        htmlContent += `<div>Rozmery: ${calc.dimensions}</div>`;
-        htmlContent += `<div>Tabuľa: ${calc.stockWidth}x${calc.stockHeight} cm</div>`;
-        htmlContent += `<div>Plocha: ${formatNumber(calc.totalArea)} m², Odpad: ${formatNumber(calc.wastePercentage)}%</div>`;
-        
-        // Ak máme údaje o cene
-        if (calc.glassName) {
-            htmlContent += `<div class="mt-1"><strong>${calc.glassName}</strong></div>`;
-            htmlContent += `<div>Cena: ${formatNumber(calc.totalPrice)} €</div>`;
-        }
-        
-        htmlContent += `</div>`;
-    });
+    // Získanie údajov z výsledkov optimalizácie
+    const totalArea = optimizationResult.sheets[0].total_area;
+    const wastePercentage = optimizationResult.sheets[0].waste_percentage;
     
-    historyContainer.innerHTML = htmlContent;
+    console.log(`Počítam cenu pre plochu ${totalArea} m² s odpadom ${wastePercentage}%`);
+    
+    // Získanie vybraného typu skla
+    const glassTypeSelect = document.getElementById('glassType');
+    const glassType = glassTypeSelect.options[glassTypeSelect.selectedIndex].dataset.name;
+    
+    // Odoslanie požiadavky na výpočet ceny
+    fetch(`${apiBaseUrl}/api/calculate-price`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            glassType: glassType,
+            area: totalArea,
+            wastePercentage: wastePercentage
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Chyba pri komunikácii so serverom');
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Prijaté dáta výpočtu ceny:', data);
+        
+        // Zobrazenie výsledkov
+        if (data.success && data.price) {
+            displayPriceCalculation(data.price);
+            
+            // Pridanie do histórie
+            addToHistory('Výpočet ceny', `Typ skla: ${data.price.glass_name}`);
+        } else {
+            showAlert('Nepodarilo sa vypočítať cenu.', 'warning');
+        }
+    })
+    .catch(error => {
+        console.error('Chyba:', error);
+        showAlert(`Nastala chyba: ${error.message}`, 'danger');
+    });
 }
 
-function showAlert(message, type = 'info') {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
-    alertDiv.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
+function displayPriceCalculation(data) {
+    document.getElementById('priceResult').classList.remove('d-none');
     
-    // Vloženie na začiatok stránky
-    const container = document.querySelector('.container');
-    container.insertBefore(alertDiv, container.firstChild);
+    // Nastavenie hodnôt
+    document.getElementById('glassName').textContent = data.glass_name || 'Neznáme sklo';
+    document.getElementById('area').textContent = formatNumber(data.area || 0);
+    document.getElementById('areaPrice').textContent = formatNumber(data.area_price || 0);
+    document.getElementById('wasteArea').textContent = formatNumber(data.waste_area || 0);
+    document.getElementById('wastePrice').textContent = formatNumber(data.waste_price || 0);
     
-    // Automatické skrytie po 5 sekundách
-    setTimeout(() => {
-        alertDiv.classList.remove('show');
-        setTimeout(() => alertDiv.remove(), 300);
-    }, 5000);
+    // Výpočet celkovej ceny
+    const totalPrice = (data.area_price || 0) + (data.waste_price || 0);
+    document.getElementById('totalPrice').textContent = formatNumber(totalPrice);
+    
+    // Posunieme sa na výsledky
+    document.getElementById('priceResult').scrollIntoView({ behavior: 'smooth' });
 } 
