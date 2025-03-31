@@ -297,29 +297,40 @@ function handleOptimizeSubmit(event) {
     resultContainer.classList.remove('d-none');
     priceCalculatorSection.classList.add('d-none'); // Skryť cenu počas novej optimalizácie
     document.getElementById('priceResult').classList.add('d-none'); 
-    if(pdfButton) pdfButton.disabled = true; // Deaktivovať PDF tlačidlo
+    if(pdfButton) pdfButton.disabled = true;
     
+    // Opravený formát dát pre API
     fetch(`${apiBaseUrl}/api/optimize`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dimensions: dimensionsInput, stock_width: stockWidth, stock_height: stockHeight })
+        body: JSON.stringify({ 
+            dimensions: dimensionsInput, 
+            stockSize: { 
+                width: stockWidth, 
+                height: stockHeight 
+            } 
+        })
     })
     .then(response => {
         if (!response.ok) { throw new Error('Chyba pri komunikácii so serverom'); }
         return response.json();
     })
     .then(data => {
-        if (!data.success || !data.sheets || data.sheets.length === 0) {
-            showAlert('Nepodarilo sa nájsť optimálne rozloženie.', 'warning');
+        if (!data.success) {
+            showAlert(data.error || 'Nepodarilo sa nájsť optimálne rozloženie.', 'warning');
             resultContainer.classList.add('d-none');
             priceCalculatorSection.classList.add('d-none');
             return;
         }
+        
         currentOptimizationData = data;
         currentPriceData = null; // Reset ceny
         displayOptimizationResults(data);
         resultContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        addToHistory('Optimalizácia', `Tabuľa: ${stockWidth}x${stockHeight}, Kusov: ${data.sheets[0].layout.length}`);
+        
+        // Pridať do histórie
+        const count = data.results ? data.results[0].panels.length : 0;
+        addToHistory('Optimalizácia', `Tabuľa: ${stockWidth}x${stockHeight}, Kusov: ${count}`);
         showAlert('Optimalizácia dokončená.', 'success');
         
         // Zobraziť sekciu pre výpočet ceny
@@ -338,19 +349,40 @@ function handleOptimizeSubmit(event) {
 
 function displayOptimizationResults(data) {
     const optimizationResultDiv = document.getElementById('optimizationResult');
-    const sheet = data.sheets[0]; 
+    
+    // Skontrolujeme formát dát
+    let sheet;
+    if (data.sheets && data.sheets.length > 0) {
+        sheet = data.sheets[0];
+    } else if (data.results && data.results.length > 0) {
+        sheet = {
+            layout: data.results[0].panels,
+            total_area: data.total_area,
+            waste_percentage: data.results[0].waste_percentage,
+            stock_width: data.results[0].stock_width || 321,
+            stock_height: data.results[0].stock_height || 225
+        };
+    } else {
+        optimizationResultDiv.innerHTML = `
+            <div class="placeholder-content text-center p-5 text-muted">
+                <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                <p>Neboli nájdené žiadne platné výsledky na zobrazenie.</p>
+            </div>
+        `;
+        return;
+    }
     
     // Aktualizácia súhrnu
-    document.getElementById('totalArea').textContent = formatNumber(sheet.total_area);
-    document.getElementById('wastePercentage').textContent = formatNumber(sheet.waste_percentage);
+    document.getElementById('totalArea').textContent = formatNumber(data.total_area || sheet.total_area);
+    document.getElementById('wastePercentage').textContent = formatNumber(data.total_waste || sheet.waste_percentage);
     
     optimizationResultDiv.innerHTML = ''; // Vyčistenie predchádzajúceho obsahu/placeholderu
     
     if (!sheet.layout || sheet.layout.length === 0) {
         optimizationResultDiv.innerHTML = `
             <div class="placeholder-content text-center p-5 text-muted">
-                 <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
-                 <p>Neboli nájdené žiadne platné kusy na zobrazenie.</p>
+                <i class="fas fa-exclamation-triangle fa-3x mb-3 text-warning"></i>
+                <p>Neboli nájdené žiadne platné kusy na zobrazenie.</p>
             </div>
         `;
         return;
@@ -379,7 +411,7 @@ function displayOptimizationResults(data) {
     backgroundRect.setAttribute('fill', 'var(--sheet-layout-bg)'); // Použije farbu z CSS pre konzistenciu
     svgElement.appendChild(backgroundRect);
 
-    // Farby a kreslenie panelov (rovnaké ako predtým)
+    // Farby a kreslenie panelov
     const colors = ['#58a6ff', '#3fb950', '#f85149', '#e7b416', '#56d3f1', '#7d8590']; // Aktualizované farby
     sheet.layout.forEach((panel, index) => {
         const color = colors[index % colors.length];
@@ -400,9 +432,16 @@ function displayOptimizationResults(data) {
         
         // Text (rovnaký ako predtým)
         const minDim = Math.min(width, height);
-        let fontSize = minDim * 0.40; // Mierne menšie pre hustejšie layouty
-        fontSize = Math.max(fontSize, 6); 
-        fontSize = Math.min(fontSize, 18); 
+        let fontSize = minDim * 0.25; // Upravené pre lepšiu čitateľnosť
+        
+        // Ak je panel príliš malý, zmenšíme font
+        if (width * height < 150) {
+            fontSize *= 0.8;
+        }
+        
+        // Minimálna/maximálna veľkosť písma
+        fontSize = Math.max(4, fontSize); 
+        fontSize = Math.min(14, fontSize);
         
         const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         textElement.setAttribute('x', x + width/2);
@@ -415,7 +454,7 @@ function displayOptimizationResults(data) {
         textElement.setAttribute('stroke-width', 0.25);
         textElement.setAttribute('paint-order', 'stroke');
         textElement.setAttribute('style', 'font-weight: 600;');
-        textElement.textContent = `${panel.width}x${panel.height}${panel.rotated ? 'Ⓡ' : ''}`;
+        textElement.textContent = `${width}x${height}${panel.rotated ? 'Ⓡ' : ''}`;
         svgElement.appendChild(textElement);
     });
     
@@ -425,6 +464,7 @@ function displayOptimizationResults(data) {
 function handleStockSizeChange() {
     const stockSizeSelect = document.getElementById('stockSize');
     const customSizeFields = document.getElementById('customSizeFields');
+    
     if (stockSizeSelect.value === 'custom') {
         customSizeFields.classList.remove('d-none');
     } else {
@@ -433,59 +473,84 @@ function handleStockSizeChange() {
 }
 
 function loadGlassCategories() {
+    const categorySelect = document.getElementById('glassCategory');
+    if (!categorySelect) return;
+    
+    categorySelect.innerHTML = '<option selected disabled value="">Načítavam...</option>';
+    
     fetch(`${apiBaseUrl}/api/get-glass-categories`)
-        .then(response => response.json())
-        .then(categories => {
-            const categorySelect = document.getElementById('glassCategory');
-            categorySelect.innerHTML = '<option value="" disabled selected>Vyberte kategóriu...</option>';
-            
-            categories.forEach(category => {
-                const option = document.createElement('option');
-                option.value = category.id;
-                option.textContent = category.name;
-                categorySelect.appendChild(option);
-            });
-            document.getElementById('glassType').innerHTML = '<option value="" disabled selected>Najprv vyberte kategóriu...</option>';
+        .then(response => {
+            if (!response.ok) throw new Error('Chyba pri získavaní kategórií');
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.categories) {
+                // Vyčistíme select a pridáme placeholder
+                categorySelect.innerHTML = '<option selected disabled value="">Vyberte kategóriu</option>';
+                
+                // Pridáme jednotlivé kategórie
+                data.categories.forEach(category => {
+                    const option = document.createElement('option');
+                    option.value = category.id;
+                    option.textContent = category.name;
+                    categorySelect.appendChild(option);
+                });
+            } else {
+                categorySelect.innerHTML = '<option selected disabled value="">Kategórie nedostupné</option>';
+                console.error('Nepodarilo sa načítať kategórie:', data.error);
+            }
         })
         .catch(error => {
-            console.error('Chyba pri načítaní kategórií skla:', error);
-            showAlert('Nepodarilo sa načítať kategórie skla.', 'danger');
+            categorySelect.innerHTML = '<option selected disabled value="">Chyba pri načítaní</option>';
+            console.error('Chyba pri načítaní kategórií:', error);
         });
 }
 
 function handleCategoryChange() {
-    const categoryId = document.getElementById('glassCategory').value;
+    const categorySelect = document.getElementById('glassCategory');
     const typeSelect = document.getElementById('glassType');
     
+    if (!categorySelect || !typeSelect) return;
+    
+    const categoryId = categorySelect.value;
     if (!categoryId) {
-        typeSelect.innerHTML = '<option value="" disabled selected>Najprv vyberte kategóriu...</option>';
+        typeSelect.innerHTML = '<option selected disabled value="">Najprv vyberte kategóriu</option>';
+        typeSelect.disabled = true;
         return;
     }
     
-    typeSelect.innerHTML = '<option value="" disabled selected>Načítavam typy...</option>';
+    // Nastavíme loading state
+    typeSelect.innerHTML = '<option selected disabled value="">Načítavam...</option>';
+    typeSelect.disabled = true;
     
-    fetch(`${apiBaseUrl}/api/get-glass-types?categoryId=${categoryId}`)
-        .then(response => response.json())
-        .then(types => {
-            typeSelect.innerHTML = '';
-            if (types.length === 0) {
-                 typeSelect.innerHTML = '<option value="" disabled selected>Žiadne typy v tejto kategórii</option>';
-                 return;
+    fetch(`${apiBaseUrl}/api/get-glass-types?category_id=${categoryId}`)
+        .then(response => {
+            if (!response.ok) throw new Error('Chyba pri získavaní typov skla');
+            return response.json();
+        })
+        .then(data => {
+            if (data.success && data.types) {
+                // Vyčistíme select a pridáme placeholder
+                typeSelect.innerHTML = '<option selected disabled value="">Vyberte typ skla</option>';
+                
+                // Pridáme jednotlivé typy skla
+                data.types.forEach(type => {
+                    const option = document.createElement('option');
+                    option.value = type.id;
+                    option.textContent = `${type.name} (${type.price_per_m2}€/m²)`;
+                    option.dataset.name = type.name;
+                    typeSelect.appendChild(option);
+                });
+                
+                typeSelect.disabled = false;
+            } else {
+                typeSelect.innerHTML = '<option selected disabled value="">Typy nedostupné</option>';
+                console.error('Nepodarilo sa načítať typy skla:', data.error);
             }
-             typeSelect.innerHTML = '<option value="" disabled selected>Vyberte typ skla...</option>'; // Pridanie placeholderu
-            
-            types.forEach(type => {
-                const option = document.createElement('option');
-                option.value = type.id;
-                option.textContent = `${type.name} (${type.price_per_m2}€/m²)`;
-                option.dataset.name = type.name;
-                typeSelect.appendChild(option);
-            });
         })
         .catch(error => {
+            typeSelect.innerHTML = '<option selected disabled value="">Chyba pri načítaní</option>';
             console.error('Chyba pri načítaní typov skla:', error);
-            showAlert('Nepodarilo sa načítať typy skla.', 'danger');
-            typeSelect.innerHTML = '<option value="" disabled selected>Chyba pri načítaní</option>';
         });
 }
 
@@ -503,9 +568,19 @@ function handlePriceCalculation(event) {
         showAlert('Prosím, vyberte platný typ skla.', 'warning');
         return;
     }
-    const glassType = selectedOption.dataset.name; // Získame názov z data atribútu
-    const totalArea = currentOptimizationData.sheets[0].total_area;
-    const wastePercentage = currentOptimizationData.sheets[0].waste_percentage;
+    
+    // Získanie ID skla pre API
+    const glassId = selectedOption.value;
+    const glassType = selectedOption.dataset.name || selectedOption.innerText;
+    
+    // Získanie plochy a percenta odpadu z optimalizácie
+    const totalArea = currentOptimizationData.total_area || 
+                      (currentOptimizationData.sheets && currentOptimizationData.sheets[0] ? 
+                       currentOptimizationData.sheets[0].total_area : 0);
+                       
+    const wastePercentage = currentOptimizationData.total_waste ||
+                           (currentOptimizationData.sheets && currentOptimizationData.sheets[0] ? 
+                            currentOptimizationData.sheets[0].waste_percentage : 0);
     
     const priceResultDiv = document.getElementById('priceResult');
     priceResultDiv.classList.remove('d-none');
@@ -522,13 +597,20 @@ function handlePriceCalculation(event) {
         </div>
     `;
 
-    // Fetch API call zostáva rovnaký
+    // Opravený formát dát pre API
     fetch(`${apiBaseUrl}/api/calculate-price`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ glassType: glassType, area: totalArea, wastePercentage: wastePercentage })
+        body: JSON.stringify({ 
+            glass_id: glassId, 
+            area: totalArea, 
+            waste_percentage: wastePercentage 
+        })
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) { throw new Error('Chyba pri komunikácii so serverom'); }
+        return response.json();
+    })
     .then(data => {
         if (data.success && data.price) {
             // --- OPRAVA: Správne vloženie dát do dynamického HTML --- 
@@ -537,7 +619,7 @@ function handlePriceCalculation(event) {
             const wasteArea = data.price.waste_area || 0;
             const wastePrice = data.price.waste_price || 0;
             const totalPrice = areaPrice + wastePrice;
-            const glassName = data.price.glass_name || 'Neznáme sklo';
+            const glassName = data.price.glass_name || glassType;
 
             priceResultDiv.innerHTML = `
                 <div class="card fade-in">
@@ -573,10 +655,9 @@ function handlePriceCalculation(event) {
         }
     })
     .catch(error => {
-        console.error('Chyba pri výpočte ceny:', error);
+        console.error('Chyba:', error);
         showAlert(`Nastala chyba pri výpočte ceny: ${error.message}`, 'danger');
         priceResultDiv.classList.add('d-none');
-        priceResultDiv.innerHTML = '';
     });
 }
 
