@@ -1,158 +1,19 @@
-import os
-import io
-import re
-import base64
-import uuid
-import logging
-import numpy as np
-import matplotlib
-matplotlib.use('Agg')  # Použitie Agg backendu pre serverové prostredie
-import matplotlib.pyplot as plt
-import matplotlib.patches as patches
-from datetime import datetime
 from flask import Flask, render_template, request, jsonify, send_from_directory
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Text
-from sqlalchemy.orm import relationship
-import time
+import numpy as np
+import os
+import logging
+from datetime import datetime
 from dataclasses import dataclass
 from typing import List, Tuple, Dict
 
 # Konfigurácia
-STOCK_WIDTH = 321  # cm
-STOCK_HEIGHT = 225  # cm
-
-# Zistenie cesty k databáze (pre Vercel aj lokálny vývoj)
-if os.environ.get('VERCEL_ENV') == 'production':
-    # Vercel prostredie - použijeme tmp priečinok, ktorý je zapisovateľný
-    DB_PATH = '/tmp/glass_database.db'
-else:
-    # Lokálne prostredie
-    DB_PATH = os.path.abspath('glass_database.db')
-
-# Inicializácia Flask aplikácie
+STOCK_WIDTH = 321
+STOCK_HEIGHT = 225
 app = Flask(__name__, template_folder='templates')
-app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{DB_PATH}'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['SESSION_TYPE'] = 'filesystem'
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'devkey12345')
 
 # Nastavenie logovania
-logging.basicConfig(level=logging.INFO,
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-# Inicializácia databázy
-db = SQLAlchemy(app)
-
-# Databázové modely
-class GlassCategory(db.Model):
-    __tablename__ = 'glass_categories'
-    
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    glasses = relationship("Glass", back_populates="category")
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name
-        }
-
-class Glass(db.Model):
-    __tablename__ = 'glasses'
-    
-    id = Column(Integer, primary_key=True)
-    name = Column(String(100), nullable=False)
-    price_per_m2 = Column(Float, nullable=False)
-    category_id = Column(Integer, ForeignKey('glass_categories.id'), nullable=False)
-    category = relationship("GlassCategory", back_populates="glasses")
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'price_per_m2': self.price_per_m2,
-            'category_id': self.category_id,
-            'category_name': self.category.name if self.category else None
-        }
-
-class Calculation(db.Model):
-    __tablename__ = 'calculations'
-    
-    id = Column(Integer, primary_key=True)
-    user_id = Column(String(100), nullable=False)
-    glass_id = Column(Integer, ForeignKey('glasses.id'), nullable=False)
-    dimensions = Column(Text, nullable=False)
-    stock_width = Column(Float, nullable=False)
-    stock_height = Column(Float, nullable=False)
-    area_m2 = Column(Float, nullable=False)
-    waste_area_m2 = Column(Float, nullable=False)
-    waste_percentage = Column(Float, nullable=False)
-    total_price = Column(Float, nullable=False)
-    timestamp = Column(DateTime, default=datetime.utcnow)
-    
-    glass = relationship("Glass")
-    
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'timestamp': self.timestamp.isoformat(),
-            'glass_name': self.glass.name if self.glass else 'Neznáme sklo',
-            'dimensions': self.dimensions,
-            'stock_dimensions': f"{self.stock_width}x{self.stock_height}",
-            'area_m2': self.area_m2,
-            'waste_area_m2': self.waste_area_m2,
-            'waste_percentage': self.waste_percentage,
-            'total_price': self.total_price
-        }
-
-# Vytvorenie tabuliek pred prvým requestom
-@app.before_request
-def create_tables():
-    # Pre prvé spustenie vytvoríme tabuľky a ukážkové dáta
-    with app.app_context():
-        db.create_all()
-        # Kontrola či existujú kategórie, ak nie, vytvoríme ukážkové dáta
-        if GlassCategory.query.count() == 0:
-            create_sample_data()
-
-# Vytvorenie ukážkových dát
-def create_sample_data():
-    # Kategórie skla
-    categories = [
-        GlassCategory(name="Čiré sklo"),
-        GlassCategory(name="Farebné sklo"),
-        GlassCategory(name="Bezpečnostné sklo"),
-        GlassCategory(name="Izolačné sklo")
-    ]
-    
-    for category in categories:
-        db.session.add(category)
-    
-    db.session.commit()
-    
-    # Typy skla
-    glasses = [
-        Glass(name="Čiré 3mm", price_per_m2=15.0, category_id=1),
-        Glass(name="Čiré 4mm", price_per_m2=18.0, category_id=1),
-        Glass(name="Čiré 6mm", price_per_m2=24.0, category_id=1),
-        Glass(name="Zelené 4mm", price_per_m2=22.0, category_id=2),
-        Glass(name="Modré 4mm", price_per_m2=22.0, category_id=2),
-        Glass(name="Bronzové 4mm", price_per_m2=23.0, category_id=2),
-        Glass(name="Kalené 6mm", price_per_m2=45.0, category_id=3),
-        Glass(name="Kalené 8mm", price_per_m2=60.0, category_id=3),
-        Glass(name="Vrstvené 3.3.1", price_per_m2=35.0, category_id=3),
-        Glass(name="Dvojsklo 4-16-4", price_per_m2=50.0, category_id=4),
-        Glass(name="Trojsklo 4-12-4-12-4", price_per_m2=80.0, category_id=4)
-    ]
-    
-    for glass in glasses:
-        db.session.add(glass)
-    
-    db.session.commit()
-    
-    logger.info("Ukážkové dáta boli úspešne vytvorené")
 
 @dataclass
 class GlassPanel:
@@ -292,7 +153,6 @@ class CuttingOptimizer:
     def calculate_total_area(self, panels: List[GlassPanel]) -> float:
         return sum(panel.width * panel.height for panel in panels) / 10000  # v m²
 
-# Cesty API a webové stránky
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -397,61 +257,5 @@ def get_glass_types():
     
     return jsonify(glass_types.get(category_id, []))
 
-@app.route('/history', methods=['GET'])
-def get_history():
-    user_id = request.cookies.get('user_id')
-    if not user_id:
-        return jsonify([])
-    
-    calculations = Calculation.query.filter_by(user_id=user_id).order_by(Calculation.timestamp.desc()).limit(20).all()
-    return jsonify([calc.to_dict() for calc in calculations])
-
-@app.route('/clear_history', methods=['POST'])
-def clear_history():
-    try:
-        user_id = request.cookies.get('user_id')
-        if not user_id:
-            return jsonify({'message': 'Žiadna história.'}), 200
-        
-        Calculation.query.filter_by(user_id=user_id).delete()
-        db.session.commit()
-        
-        return jsonify({'message': 'História bola úspešne vymazaná.'})
-    
-    except Exception as e:
-        logger.error(f"Chyba pri vymazávaní histórie: {str(e)}")
-        db.session.rollback()
-        return jsonify({'error': f'Nastala chyba: {str(e)}'}), 500
-
-# Pomocné funkcie
-def parse_dimensions(dimensions_string):
-    """Parsovanie rozmerov skiel z reťazca v tvare "100x50-200x30-80.5x90.2"."""
-    if not dimensions_string:
-        return []
-    
-    # Rozdelenie reťazca na jednotlivé rozmery
-    dimensions_list = dimensions_string.replace(' ', '').split('-')
-    panels = []
-    
-    logger.info(f"Parsovanie rozmerov: {dimensions_string} -> {dimensions_list}")
-    
-    for dimension in dimensions_list:
-        # Pre každý rozmer skúsime vytvoriť panel
-        match = re.match(r'(\d+(?:\.\d+)?)x(\d+(?:\.\d+)?)', dimension.strip())
-        if match:
-            width = float(match.group(1))
-            height = float(match.group(2))
-            
-            logger.info(f"Rozpoznaný rozmer: {width}x{height}")
-            
-            if width > 0 and height > 0:
-                panels.append((width, height))
-        else:
-            logger.warning(f"Nerozpoznaný formát rozmeru: {dimension}")
-    
-    return panels
-
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
     app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000))) 
