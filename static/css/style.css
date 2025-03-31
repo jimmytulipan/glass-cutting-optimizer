@@ -643,6 +643,13 @@ body {
     background-color: #161616; /* Tmavšie pozadie pre lepší kontrast */
 }
 
+/* Card štýl bez okrajov a s maximálnym využitím priestoru */
+.card.mb-4 {
+    margin-bottom: 1rem;
+    height: calc(100vh - 180px); /* Takmer celá výška okna mínus priestor pre header a footer */
+    max-height: 800px; /* Maximálna výška pre veľké obrazovky */
+}
+
 /* Zabezpečenie, aby sa obsah neprelieval v sheet-layout */
 .sheet-layout {
     padding: 0 !important;

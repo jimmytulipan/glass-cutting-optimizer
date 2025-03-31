@@ -342,57 +342,34 @@ function displayOptimizationResults(data) {
     }
 
     // --- Určujeme hranice rozvrhnutých kusov ---
-    let minX = sheet.stock_width, minY = sheet.stock_height, maxX = 0, maxY = 0;
-    sheet.layout.forEach(panel => {
-        minX = Math.min(minX, panel.x);
-        minY = Math.min(minY, panel.y);
-        maxX = Math.max(maxX, panel.x + panel.width);
-        maxY = Math.max(maxY, panel.y + panel.height);
-    });
+    let minX = Math.min(...sheet.layout.map(panel => panel.x));
+    let minY = Math.min(...sheet.layout.map(panel => panel.y));
+    let maxX = Math.max(...sheet.layout.map(panel => panel.x + panel.width));
+    let maxY = Math.max(...sheet.layout.map(panel => panel.y + panel.height));
 
     // Rozmery používanej časti
     const usedWidth = maxX - minX;
     const usedHeight = maxY - minY;
-    
-    // Vypočítame pomer strán používanej časti
-    const usedAspectRatio = usedWidth / usedHeight;
-    
-    // Získame rozmery kontajnera - namiesto výpočtu stačí jeden rozmer, druhý sa prispôsobí pomeru strán
+
+    // Získame rozmery kontajnera
     const containerWidth = optimizationResultDiv.offsetWidth;
     const containerHeight = optimizationResultDiv.offsetHeight;
-    
-    // Určenie aktuálneho pomeru strán kontajnera
-    const containerAspectRatio = containerWidth / containerHeight;
-    
-    // Vytvorenie SVG elementu
+
+    // Vytvorenie SVG elementu s pevnou veľkosťou 100%
     const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svgElement.setAttribute('width', '100%');
     svgElement.setAttribute('height', '100%');
+
+    // KĽÚČOVÁ ÚPRAVA VIEWBOXU - nepoužijeme tu padding, zobraziť celú oblasť s rezmi
+    minX = 0;  // Začíname od nuly
+    minY = 0;  // Začíname od nuly
+    const vbWidth = sheet.stock_width;  // Celá šírka tabule
+    const vbHeight = sheet.stock_height;  // Celá výška tabule
     
-    // Nastavenie viewBox pre plné využitie priestoru
-    // Rozhodneme, ako nastaviť viewBox na základe porovnania pomerov strán
-    let vbX, vbY, vbWidth, vbHeight;
+    // Nastavenie viewBox pre zobrazenie celej tabule - KĽÚČOVÉ
+    svgElement.setAttribute('viewBox', `${minX} ${minY} ${vbWidth} ${vbHeight}`);
     
-    // Zabezpečíme, aby obsah vyplnil celú šírku a nemal prebytočné okraje
-    vbX = Math.max(0, minX);
-    vbY = Math.max(0, minY);
-    vbWidth = usedWidth;
-    vbHeight = usedHeight;
-    
-    // Pridanie paddingu (zmenšené pre lepšie vyplnenie okienka)
-    const paddingPercentage = 0.01; // Zmenšený padding z 5% na 1%
-    const paddingX = usedWidth * paddingPercentage;
-    const paddingY = usedHeight * paddingPercentage;
-    
-    vbX -= paddingX;
-    vbY -= paddingY;
-    vbWidth += 2 * paddingX;
-    vbHeight += 2 * paddingY;
-    
-    // Nastavíme SVG viewBox
-    svgElement.setAttribute('viewBox', `${vbX} ${vbY} ${vbWidth} ${vbHeight}`);
-    
-    // Zabezpečí, že obsah vyplní celý kontajner
+    // Nedeformované zobrazenie - bude vidno celú tabuľu
     svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     svgElement.classList.add('layout-visualization');
     
@@ -414,7 +391,7 @@ function displayOptimizationResults(data) {
         rectPanel.setAttribute('height', height);
         rectPanel.setAttribute('fill', color);
         rectPanel.setAttribute('stroke', 'rgba(255,255,255,0.4)');
-        rectPanel.setAttribute('stroke-width', 0.3 * Math.sqrt(vbWidth / sheet.stock_width));
+        rectPanel.setAttribute('stroke-width', 0.5); // Konsistentná hrúbka čiary
         svgElement.appendChild(rectPanel);
         
         // Výpočet veľkosti fontu
@@ -431,8 +408,7 @@ function displayOptimizationResults(data) {
         textElement.setAttribute('font-size', fontSize);
         textElement.setAttribute('fill', 'white');
         textElement.setAttribute('stroke', 'black');
-        const strokeWidth = 0.3 * Math.sqrt(vbWidth / sheet.stock_width);
-        textElement.setAttribute('stroke-width', Math.max(strokeWidth, 0.1));
+        textElement.setAttribute('stroke-width', 0.3);
         textElement.setAttribute('paint-order', 'stroke');
         textElement.setAttribute('style', 'font-weight: 600;');
         textElement.textContent = `${panel.width}x${panel.height}${panel.rotated ? 'Ⓡ' : ''}`;
