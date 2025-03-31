@@ -16,6 +16,7 @@ matplotlib.use('Agg')
 import traceback
 import time
 import json
+from reportlab.lib import colors
 
 # Konfigurácia
 STOCK_WIDTH = 321
@@ -175,7 +176,12 @@ class CuttingOptimizer:
 
 @app.route('/')
 def index():
-    """Zobrazí hlavnú stránku aplikácie."""
+    """Zobrazí landing page."""
+    return render_template('landing.html')
+
+@app.route('/app')
+def app_page():
+    """Zobrazí hlavnú aplikáciu."""
     return render_template('index.html')
 
 @app.route('/static/<path:path>')
