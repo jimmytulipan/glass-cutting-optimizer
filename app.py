@@ -15,6 +15,8 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Text
 from sqlalchemy.orm import relationship
 import time
+from dataclasses import dataclass
+from typing import List, Tuple, Dict
 
 # Konfigurácia
 STOCK_WIDTH = 321  # cm
@@ -152,315 +154,143 @@ def create_sample_data():
     
     logger.info("Ukážkové dáta boli úspešne vytvorené")
 
-# Trieda pre reprezentáciu skleného panelu
+@dataclass
 class GlassPanel:
-    def __init__(self, width, height, thickness=4.0, rotated=False):
-        self.width = width
-        self.height = height
-        self.thickness = thickness
-        self.rotated = rotated
+    width: float
+    height: float
+    thickness: float
+    rotated: bool = False
     
-    def get_dimensions(self):
+    def get_dimensions(self) -> Tuple[float, float]:
         return (self.height, self.width) if self.rotated else (self.width, self.height)
     
     def rotate(self):
         self.rotated = not self.rotated
         return self
 
-# Kalkulátor pre výpočet ceny skla
 class GlassCalculator:
-    def __init__(self, glass, area_m2, waste_area_m2=0):
-        self.glass = glass
-        self.area_m2 = area_m2
-        self.waste_area_m2 = waste_area_m2
-    
-    def calculate_price(self):
-        area_price = self.area_m2 * self.glass.price_per_m2
-        waste_price = self.waste_area_m2 * self.glass.price_per_m2 * 0.5  # 50% z ceny za odpad
-        total_price = area_price + waste_price
+    def calculate_price(self, glass_type: str, area: float, waste_percentage: float) -> Dict:
+        # Simulácia ceny za kategórie skla
+        base_prices = {
+            "float": 15.0,
+            "planibel": 20.0,
+            "connex": 30.0,
+            "default": 25.0
+        }
+        
+        # Výber základnej ceny alebo predvolenej hodnoty
+        price_per_m2 = base_prices.get(glass_type.lower(), base_prices["default"])
+        
+        # Výpočet ceny za plochu
+        waste_area = area * (waste_percentage / 100.0)
+        area_price = area * price_per_m2
+        waste_price = waste_area * price_per_m2
         
         return {
-            'glass_name': self.glass.name,
-            'area_m2': self.area_m2,
-            'area_price': area_price,
-            'waste_area_m2': self.waste_area_m2,
-            'waste_price': waste_price,
-            'total_price': total_price
+            'glass_name': glass_type,
+            'area': round(area, 2),
+            'area_price': round(area_price, 2),
+            'waste_area': round(waste_area, 2),
+            'waste_price': round(waste_price, 2),
+            'total_price': round(area_price + waste_price, 2)
         }
 
-# Trieda pre optimalizáciu rozloženia skla
 class CuttingOptimizer:
-    def __init__(self, stock_width, stock_height):
+    def __init__(self, stock_width: float = STOCK_WIDTH, stock_height: float = STOCK_HEIGHT):
         self.stock_width = stock_width
         self.stock_height = stock_height
         self.min_gap = 0.2
-        self.layouts = []
-        logger.info(f'Inicializovaný CuttingOptimizer s rozmermi {stock_width}x{stock_height}')
-
-    def optimize_multiple_sheets(self, panels):
-        remaining_panels = panels.copy()
-        all_layouts = []
-        sheet_number = 1
-        
-        while remaining_panels:
-            logger.info(f'Optimalizujem tabuľu #{sheet_number} s {len(remaining_panels)} panelmi')
-            
-            layout, waste = self.optimize(remaining_panels)
-            
-            if not layout:
-                # Ak sa nepodarilo umiestniť všetky panely, skúsime jednotlivo
-                successful_panels = []
-                failed_panels = []
-                
-                for panel in remaining_panels:
-                    test_layout, test_waste = self.optimize([panel])
-                    if test_layout:
-                        successful_panels.append(panel)
-                    else:
-                        failed_panels.append(panel)
-                
-                if successful_panels:
-                    layout, waste = self.optimize(successful_panels)
-                    all_layouts.append((layout, waste))
-                    remaining_panels = failed_panels
-                    sheet_number += 1
-                else:
-                    # Ak sa ani jeden panel nedá umiestniť
-                    logger.error(f'Nepodarilo sa umiestniť panel')
-                    break
-            else:
-                all_layouts.append((layout, waste))
-                remaining_panels = []  # Všetky panely sa podarilo umiestniť
-        
-        self.layouts = all_layouts
-        return all_layouts
-
-    def optimize(self, panels):
-        logger.info(f'Začiatok optimalizácie pre {len(panels)} panelov')
-        best_layout = []
-        best_waste = float('inf')
-        start_time = time.time()
-        MAX_TIME = 30  # maximálny čas optimalizácie v sekundách
-        
-        # Stratégie zoradenia panelov
-        sorting_strategies = [
-            lambda p: (-max(p.width, p.height)),  # Od najväčšieho rozmeru
-            lambda p: (-p.width * p.height),      # Od najväčšej plochy
-            lambda p: (-min(p.width, p.height)),  # Od najmenšieho rozmeru
-            lambda p: (-(p.width + p.height)),    # Od najväčšieho obvodu
-        ]
-        
-        # Obmedzenie počtu vzorcov rotácie pre veľké množstvo panelov
-        if len(panels) > 8:
-            rotation_patterns = [0]  # Bez rotácie
-        elif len(panels) > 6:
-            rotation_patterns = range(0, 2 ** len(panels), 4)  # Každý štvrtý vzor
-        else:
-            rotation_patterns = range(2 ** len(panels))  # Všetky možné rotácie
-            
-        # Rohy pre začiatok umiestnenia
-        corners = ['bottom-left'] if len(panels) > 6 else ['bottom-left', 'bottom-right', 'top-left', 'top-right']
-        
-        # Vyskúšame rôzne stratégie
-        for strategy_index, sort_key in enumerate(sorting_strategies):
-            if time.time() - start_time > MAX_TIME:
-                break
-                
-            for start_corner in corners:
-                for rotation_pattern in rotation_patterns:
-                    if time.time() - start_time > MAX_TIME:
-                        break
-                        
-                    # Aplikujeme rotačný vzor
-                    current_panels = panels.copy()
-                    for i, panel in enumerate(current_panels):
-                        if rotation_pattern & (1 << i):
-                            panel.rotate()
-                    
-                    # Zoradíme panely podľa stratégie
-                    sorted_panels = sorted(current_panels, key=sort_key)
-                    layout = self._place_panels_enhanced(sorted_panels, start_corner)
-                    
-                    # Kontrolujeme a vyhodnocujeme rozloženie
-                    if layout:
-                        if self._check_overlap(layout):
-                            continue
-                            
-                        waste = self._calculate_waste(layout)
-                        if waste < best_waste:
-                            best_waste = waste
-                            best_layout = layout
-                            
-                            # Ak je odpad dostatočne malý, ukončíme
-                            if waste < 15:
-                                return best_layout, best_waste
-        
-        return best_layout, best_waste
-
-    def calculate_total_area(self, panels):
-        """Výpočet celkovej plochy všetkých panelov v m²."""
-        return sum(panel.width * panel.height for panel in panels) / 10000
-
-    def calculate_waste_area(self, total_panels_area):
-        """Výpočet plochy odpadu ako rozdiel celkovej plochy tabule a využitej plochy."""
-        stock_area = (self.stock_width * self.stock_height) / 10000
-        return stock_area - total_panels_area
-
-    def _calculate_waste(self, layout):
-        """Výpočet percentuálneho odpadu pre dané rozloženie."""
-        used_area = sum(width * height for _, _, width, height, _ in layout)
-        total_area = self.stock_width * self.stock_height
-        return ((total_area - used_area) / total_area) * 100
-
-    def visualize(self, layout):
-        """Vizualizácia rozloženia panelov na tabuli."""
-        fig = plt.figure(figsize=(12, 8))
-        ax = fig.add_subplot(111)
-        
-        # Kreslenie tabule
-        ax.add_patch(plt.Rectangle((0, 0), self.stock_width, self.stock_height, 
-                                 fill=False, color='black', linewidth=2))
-        
-        # Farby pre panely
-        colors = ['lightblue', 'lightgreen', 'lightpink', 'lightyellow', 'lightcoral', 'lightcyan']
-        
-        # Kreslenie jednotlivých panelov
-        for i, (x, y, w, h, rotated) in enumerate(layout):
-            color = colors[i % len(colors)]
-            ax.add_patch(plt.Rectangle((x, y), w, h, fill=True, color=color))
-            ax.text(x + w/2, y + h/2, 
-                   f'{w:.1f}x{h:.1f}\n{"(R)" if rotated else ""}',
-                   horizontalalignment='center',
-                   verticalalignment='center',
-                   fontsize=8)
-        
-        # Nastavenie rozmerov a mriežky
-        ax.set_xlim(-10, self.stock_width + 10)
-        ax.set_ylim(-10, self.stock_height + 10)
-        ax.set_aspect('equal')
-        plt.title(f'Optimalizované rozloženie panelov\n{datetime.now().strftime("%Y-%m-%d %H:%M")}')
-        plt.grid(True)
-        
-        # Konverzia na base64 pre web
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
-        buf.seek(0)
-        
-        plt.close(fig)
-        
-        return buf
-
-    def _place_panels_enhanced(self, panels, start_corner):
-        """Pokročilý algoritmus pre umiestňovanie panelov."""
+    
+    def optimize(self, panels: List[GlassPanel]) -> Tuple[List[Dict], float]:
+        # Jednoduchá implementácia prvý vhodný algoritmus
+        sorted_panels = sorted(panels, key=lambda p: p.width * p.height, reverse=True)
         layout = []
         
-        # Nastavenie počiatočného priestoru podľa rohu
-        if start_corner == 'bottom-left':
-            spaces = [(0, 0, self.stock_width, self.stock_height)]
-        elif start_corner == 'bottom-right':
-            spaces = [(self.stock_width, 0, -self.stock_width, self.stock_height)]
-        elif start_corner == 'top-left':
-            spaces = [(0, self.stock_height, self.stock_width, -self.stock_height)]
-        else:  # top-right
-            spaces = [(self.stock_width, self.stock_height, -self.stock_width, -self.stock_height)]
-
-        # Umiestnenie každého panelu
-        for i, panel in enumerate(panels):
+        # Začiatočný bod (0,0) na ľavom dolnom rohu
+        spaces = [(0, 0, self.stock_width, self.stock_height)]
+        
+        for panel in sorted_panels:
             width, height = panel.get_dimensions()
             placed = False
             
-            # Kontrola všetkých dostupných priestorov
             for space_index, (space_x, space_y, space_width, space_height) in enumerate(spaces):
-                if width <= abs(space_width) and height <= abs(space_height):
-                    # Výpočet súradníc umiestnenia
-                    if start_corner == 'bottom-left':
-                        x, y = space_x, space_y
-                    elif start_corner == 'bottom-right':
-                        x, y = space_x - width, space_y
-                    elif start_corner == 'top-left':
-                        x, y = space_x, space_y - height
-                    else:  # top-right
-                        x, y = space_x - width, space_y - height
-                    
-                    # Pridanie panelu do rozloženia
-                    layout.append((x, y, width, height, panel.rotated))
+                if width <= space_width and height <= space_height:
+                    # Umiestnenie panelu
+                    layout.append({
+                        'x': space_x,
+                        'y': space_y,
+                        'width': width,
+                        'height': height,
+                        'rotated': panel.rotated
+                    })
                     placed = True
                     
-                    # Rozdelenie zostávajúceho priestoru
+                    # Vytvorenie nových priestorov po umiestnení
                     new_spaces = []
-                    if abs(space_width) - width > 0:
+                    if space_width - width > 0:
                         new_spaces.append((
-                            x + (width if start_corner in ['bottom-left', 'top-left'] else -width),
+                            space_x + width,
                             space_y,
-                            space_width - (width if start_corner in ['bottom-left', 'top-left'] else -width),
+                            space_width - width,
                             height
                         ))
-                    if abs(space_height) - height > 0:
+                    if space_height - height > 0:
                         new_spaces.append((
                             space_x,
-                            y + (height if start_corner in ['bottom-left', 'bottom-right'] else -height),
+                            space_y + height,
                             space_width,
-                            space_height - (height if start_corner in ['bottom-left', 'bottom-right'] else -height)
+                            space_height - height
                         ))
                     
-                    # Aktualizácia dostupných priestorov
                     spaces = spaces[:space_index] + spaces[space_index+1:] + new_spaces
                     break
             
-            # Ak sa panel nedal umiestniť, vrátime prázdne rozloženie
             if not placed:
-                return []
-        
-        return layout
-
-    def _check_overlap(self, layout):
-        """Kontrola prekrývania panelov v rozložení."""
-        for i, (x, y, w, h, rotated) in enumerate(layout):
-            for j in range(i + 1, len(layout)):
-                x2, y2, w2, h2, rotated2 = layout[j]
+                # Skúsime otočiť panel
+                panel.rotate()
+                width, height = panel.get_dimensions()
                 
-                # Kontrola prekrytia
-                if not (x >= x2 + w2 or x + w <= x2 or y >= y2 + h2 or y + h <= y2):
-                    return True
+                for space_index, (space_x, space_y, space_width, space_height) in enumerate(spaces):
+                    if width <= space_width and height <= space_height:
+                        # Umiestnenie otočeného panelu
+                        layout.append({
+                            'x': space_x,
+                            'y': space_y,
+                            'width': width,
+                            'height': height,
+                            'rotated': panel.rotated
+                        })
+                        placed = True
+                        
+                        # Vytvorenie nových priestorov po umiestnení
+                        new_spaces = []
+                        if space_width - width > 0:
+                            new_spaces.append((
+                                space_x + width,
+                                space_y,
+                                space_width - width,
+                                height
+                            ))
+                        if space_height - height > 0:
+                            new_spaces.append((
+                                space_x,
+                                space_y + height,
+                                space_width,
+                                space_height - height
+                            ))
+                        
+                        spaces = spaces[:space_index] + spaces[space_index+1:] + new_spaces
+                        break
         
-        return False
-    
-    def get_result_data(self):
-        """Pripraví dáta pre odpoveď API."""
-        results = {
-            'total_sheets': len(self.layouts),
-            'sheets': []
-        }
+        # Výpočet využitia a odpadu
+        total_panels_area = sum(p.width * p.height for p in panels) / 10000  # v m²
+        stock_area = (self.stock_width * self.stock_height) / 10000  # v m²
+        waste_percentage = ((stock_area - total_panels_area) / stock_area) * 100 if stock_area > 0 else 0
         
-        total_area = 0
-        total_waste = 0
-        
-        for i, (layout, waste) in enumerate(self.layouts):
-            # Výpočet plochy panelov pre túto tabuľu
-            panel_area = sum(width * height / 10000 for _, _, width, height, _ in layout)
-            total_area += panel_area
-            total_waste += waste
-            
-            # Vytvorenie vizualizácie
-            img_buf = self.visualize(layout)
-            img_base64 = base64.b64encode(img_buf.getvalue()).decode('utf-8')
-            
-            sheet_data = {
-                'layout_image': img_base64,
-                'waste': waste,
-                'area': panel_area,
-            }
-            
-            results['sheets'].append(sheet_data)
-        
-        # Pridanie súhrnných údajov
-        results['total_area'] = total_area
-        if len(self.layouts) > 0:
-            results['average_waste'] = total_waste / len(self.layouts)
-        else:
-            results['average_waste'] = 0
-            
-        return results
+        return layout, waste_percentage
+
+    def calculate_total_area(self, panels: List[GlassPanel]) -> float:
+        return sum(panel.width * panel.height for panel in panels) / 10000  # v m²
 
 # Cesty API a webové stránky
 @app.route('/')
@@ -471,133 +301,101 @@ def index():
 def send_static(path):
     return send_from_directory('static', path)
 
-@app.route('/optimize', methods=['POST'])
+@app.route('/api/optimize', methods=['POST'])
 def optimize():
-    """Endpoint pre optimalizáciu rozloženia skla."""
     try:
         data = request.json
-        logger.info(f"Prijaté údaje pre optimalizáciu: {data}")
-        
-        # Získanie rozmerov tabule a prevedenie na float
-        stock_width = float(data.get('stock_width', STOCK_WIDTH))
-        stock_height = float(data.get('stock_height', STOCK_HEIGHT))
-        
-        logger.info(f"Rozmery tabule: {stock_width}x{stock_height}")
-        
-        if stock_width <= 0 or stock_height <= 0:
-            logger.warning(f"Neplatné rozmery tabule: {stock_width}x{stock_height}")
-            return jsonify({'error': 'Neplatné rozmery tabule'}), 400
-        
-        # Parsovanie vstupných rozmerov skla
-        dimensions_text = data.get('dimensions', '')
-        dimensions = parse_dimensions(dimensions_text)
-        
-        logger.info(f"Rozpoznané rozmery: {dimensions}")
-        
-        if not dimensions:
-            logger.warning(f"Žiadne platné rozmery skla v: '{dimensions_text}'")
-            return jsonify({'error': 'Zadajte platné rozmery skla'}), 400
-        
-        # Vytvorenie objektov GlassPanel zo zadaných rozmerov
-        panels = []
-        for width, height in dimensions:
-            if width <= 0 or height <= 0:
-                logger.warning(f"Ignorujem neplatné rozmery: {width}x{height}")
-                continue
-                
-            if (width > stock_width and width > stock_height) or (height > stock_width and height > stock_height):
-                logger.warning(f"Ignorujem príliš veľké rozmery: {width}x{height}")
-                continue
-                
-            panels.append(GlassPanel(width=width, height=height, thickness=4.0))
-        
-        if not panels:
-            logger.warning("Žiadne platné rozmery po filtrovaní")
-            return jsonify({'error': 'Žiadne platné rozmery skla'}), 400
-        
-        logger.info(f"Začínam optimalizáciu {len(panels)} panelov")
-        
-        # Vytvorenie optimalizátora a výpočet optimálneho rozloženia
-        optimizer = CuttingOptimizer(stock_width, stock_height)
-        optimizer.optimize_multiple_sheets(panels)
-        
-        # Získanie výsledkov
-        result = optimizer.get_result_data()
-        logger.info(f"Optimalizácia dokončená s {len(result.get('sheets', []))} tabuľami")
-        
-        # Uloženie užívateľského ID do cookies pre históriu
-        user_id = request.cookies.get('user_id')
-        response = jsonify(result)
-        if not user_id:
-            user_id = str(uuid.uuid4())
-            response.set_cookie('user_id', user_id, max_age=60*60*24*365)
-        
-        return response
-            
-    except Exception as e:
-        logger.error(f"Chyba pri optimalizácii: {str(e)}", exc_info=True)
-        return jsonify({'error': f'Nastala chyba: {str(e)}'}), 500
-
-@app.route('/glass_categories', methods=['GET'])
-def get_glass_categories():
-    categories = GlassCategory.query.all()
-    return jsonify([category.to_dict() for category in categories])
-
-@app.route('/glass_types/<int:category_id>', methods=['GET'])
-def get_glass_types(category_id):
-    glasses = Glass.query.filter_by(category_id=category_id).all()
-    return jsonify([glass.to_dict() for glass in glasses])
-
-@app.route('/calculate_price', methods=['POST'])
-def calculate_price():
-    try:
-        data = request.json
-        
-        # Získanie parametrov
-        glass_id = data.get('glass_id')
-        total_area_m2 = float(data.get('total_area_m2', 0))
-        waste_area_m2 = float(data.get('waste_area_m2', 0))
         dimensions = data.get('dimensions', '')
         stock_width = float(data.get('stock_width', STOCK_WIDTH))
         stock_height = float(data.get('stock_height', STOCK_HEIGHT))
         
-        # Kontrola vstupov
-        if not glass_id:
-            return jsonify({'error': 'Chýba ID skla.'}), 400
+        # Parsovanie rozmerov skla
+        panels = []
+        for dim in dimensions.split('-'):
+            parts = dim.split('x')
+            if len(parts) == 2:
+                try:
+                    width, height = float(parts[0].strip()), float(parts[1].strip())
+                    panels.append(GlassPanel(width, height, 4.0))
+                except ValueError:
+                    continue
         
-        glass = Glass.query.get(glass_id)
-        if not glass:
-            return jsonify({'error': 'Sklo nebolo nájdené.'}), 404
+        if not panels:
+            return jsonify({'error': 'Neplatné rozmery skla'}), 400
         
-        # Výpočet ceny
-        calculator = GlassCalculator(glass, total_area_m2, waste_area_m2)
-        price_result = calculator.calculate_price()
+        # Optimalizácia rozloženia
+        optimizer = CuttingOptimizer(stock_width, stock_height)
+        layout, waste_percentage = optimizer.optimize(panels)
+        total_area = optimizer.calculate_total_area(panels)
         
-        # Uloženie kalkulácie do histórie
-        user_id = request.cookies.get('user_id')
-        if not user_id:
-            user_id = str(uuid.uuid4())
+        return jsonify({
+            'success': True,
+            'sheets': [{
+                'layout': layout,
+                'waste_percentage': round(waste_percentage, 2),
+                'total_area': round(total_area, 2)
+            }]
+        })
+    except Exception as e:
+        logger.error(f"Chyba pri optimalizácii: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/calculate-price', methods=['POST'])
+def calculate_price():
+    try:
+        data = request.json
+        glass_type = data.get('glassType', 'default')
+        area = float(data.get('area', 0))
+        waste_percentage = float(data.get('wastePercentage', 0))
         
-        calculation = Calculation(
-            user_id=user_id,
-            glass_id=glass_id,
-            dimensions=dimensions,
-            stock_width=stock_width,
-            stock_height=stock_height,
-            area_m2=total_area_m2,
-            waste_area_m2=waste_area_m2,
-            waste_percentage=(waste_area_m2 / total_area_m2 * 100) if total_area_m2 > 0 else 0,
-            total_price=price_result['total_price']
-        )
+        calculator = GlassCalculator()
+        price_result = calculator.calculate_price(glass_type, area, waste_percentage)
         
-        db.session.add(calculation)
-        db.session.commit()
-        
-        return jsonify(price_result)
-    
+        return jsonify({
+            'success': True,
+            'price': price_result
+        })
     except Exception as e:
         logger.error(f"Chyba pri výpočte ceny: {str(e)}")
-        return jsonify({'error': f'Nastala chyba: {str(e)}'}), 500
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/get-glass-categories', methods=['GET'])
+def get_glass_categories():
+    # Simulácia kategórií skla
+    categories = [
+        {'id': 1, 'name': 'FLOAT'},
+        {'id': 2, 'name': 'PLANIBEL'},
+        {'id': 3, 'name': 'CONNEX'},
+        {'id': 4, 'name': 'LACOBEL'}
+    ]
+    return jsonify(categories)
+
+@app.route('/api/get-glass-types', methods=['GET'])
+def get_glass_types():
+    category_id = request.args.get('categoryId', '1')
+    
+    # Simulácia typov skla podľa kategórie
+    glass_types = {
+        '1': [
+            {'id': 1, 'name': '2 mm Float', 'price_per_m2': 11.67},
+            {'id': 2, 'name': '3 mm Float', 'price_per_m2': 6.41},
+            {'id': 3, 'name': '4 mm Float', 'price_per_m2': 7.74}
+        ],
+        '2': [
+            {'id': 4, 'name': '3 mm Planibel bronz', 'price_per_m2': 8.25},
+            {'id': 5, 'name': '4 mm Planibel bronz', 'price_per_m2': 15.20}
+        ],
+        '3': [
+            {'id': 6, 'name': '33.1 číre', 'price_per_m2': 19.35},
+            {'id': 7, 'name': '44.1 číre', 'price_per_m2': 23.32}
+        ],
+        '4': [
+            {'id': 8, 'name': '4mm Lacobel čierny', 'price_per_m2': 19.64},
+            {'id': 9, 'name': '4mm Lacobel biely', 'price_per_m2': 25.33}
+        ]
+    }
+    
+    return jsonify(glass_types.get(category_id, []))
 
 @app.route('/history', methods=['GET'])
 def get_history():
@@ -656,4 +454,4 @@ def parse_dimensions(dimensions_string):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True, host='0.0.0.0', port=5000) 
+    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000))) 
