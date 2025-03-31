@@ -1,80 +1,78 @@
-# Optimalizátor Rezania Skla - Webová aplikácia
+# Rezací program a kalkulátor cien skla
 
-## Popis
-Webová aplikácia na optimalizáciu rozloženia skiel na tabuli. Aplikácia počíta najefektívnejšie rozloženie s minimálnym odpadom a poskytuje možnosť cenovej kalkulácie.
+Aplikácia na optimalizáciu rezania sklenených tabúľ a kalkuláciu cien pre sklárske firmy. Podporuje webové rozhranie aj Telegram bota.
 
-## Funkcie
-- Optimalizácia rozloženia skla na tabuli pre minimalizáciu odpadu
-- Vizualizácia rozloženia
-- Kalkulácia ceny podľa typu skla 
-- Ukladanie histórie výpočtov
-- Responzívny dizajn
+## Funkcionalita
 
-## Požiadavky
-- Python 3.8+
-- Flask
-- Flask-SQLAlchemy
-- matplotlib
-- numpy
-- Moderný webový prehliadač
+- Výpočet optimálneho rozloženia sklenených tabúľ na minimalizáciu odpadu
+- Výber z preddefinovaných rozmerov tabúľ alebo zadanie vlastných rozmerov
+- Kalkulácia ceny na základe typu skla a celkovej plochy
+- Vizualizácia rozloženia rezov
+- Generovanie PDF reportov
+- História kalkulácií
 
-## Inštalácia a spustenie (lokálne)
+## Inštalácia
 
-1. Klonujte repozitár:
-   ```
-   git clone https://github.com/vas-username/glass-cutting-optimizer.git
-   cd glass-cutting-optimizer
-   ```
+1. Naklonujte repozitár
+2. Vytvorte virtuálne prostredie a aktivujte ho:
+```bash
+python -m venv venv
+# Windows
+venv\Scripts\activate
+# Linux/Mac
+source venv/bin/activate
+```
+3. Nainštalujte závislosti:
+```bash
+pip install -r requirements.txt
+```
+4. Skopírujte `.env.example` na `.env` a upravte nastavenia:
+```bash
+cp .env.example .env
+```
+5. Ak chcete používať Telegram bota, nastavte `TELEGRAM_BOT_TOKEN` v `.env` súbore.
 
-2. Inštalujte potrebné knižnice:
-   ```
-   pip install -r requirements.txt
-   ```
+## Spustenie aplikácie
 
-3. Spustite aplikáciu:
-   ```
-   python app.py
-   ```
+Aplikáciu je možné spustiť v troch režimoch:
 
-4. Otvorte webový prehliadač a navštívte `http://localhost:5000`
+### 1. Len webová aplikácia:
+```bash
+python combined_runner.py --web
+```
 
-## Nasadenie na Vercel
+### 2. Len Telegram bot:
+```bash
+python combined_runner.py --telegram
+```
 
-1. Pripravte svoj GitHub repozitár:
-   - Vytvorte nový repozitár na GitHube
-   - Nastavte origin a push:
-     ```
-     git remote add origin https://github.com/vas-username/glass-cutting-optimizer.git
-     git push -u origin master
-     ```
+### 3. Obidva komponenty súčasne:
+```bash
+python combined_runner.py --both
+```
 
-2. Nasadenie na Vercel:
-   - Zaregistrujte sa na [Vercel](https://vercel.com)
-   - Kliknite na "New Project"
-   - Importujte svoj GitHub repozitár
-   - V nastaveniach projektu nechajte všetko predvolené (Vercel automaticky rozpozná Flask aplikáciu)
-   - Kliknite "Deploy"
+Po spustení webovej aplikácie je rozhranie dostupné na adrese `http://localhost:5000`.
 
-3. Po nasadení:
-   - Vercel vám poskytne URL vašej aplikácie (napr. `https://glass-cutting-optimizer.vercel.app`)
-   - Aplikácia je teraz dostupná online pre všetkých užívateľov
+## Telegram Bot
 
-## Použitie
-1. Vyberte rozmer tabule (štandardný alebo vlastný)
-2. Zadajte rozmery skiel v jednom z formátov:
-   - Jeden rozmer: `100x50` alebo `83.5x92.2`
-   - Viac rozmerov naraz: `100x50-200x30-80.5x90.2`
-3. Kliknite na "Vypočítať Optimálne Rozloženie"
-4. Prezrite si výsledky optimalizácie
-5. Voliteľne vypočítajte cenu výbratím kategórie a typu skla
+Pre používanie Telegram bota:
 
-## Databáza
-Aplikácia používa SQLite databázu na ukladanie:
-- Kategórií skla
-- Typov skla a ich cien
-- Histórie výpočtov
+1. Začnite konverzáciu s vaším botom pomocou príkazu `/start`
+2. Vyberte rozmer tabule alebo zadajte vlastný
+3. Zadajte rozmery sklenených tabúľ v požadovanom formáte
+4. Získate vizualizáciu optimálneho rozloženia a súhrn
+5. Potvrďte výpočet ceny a vyberte typ skla
+6. Získate celkovú kalkuláciu ceny
 
-Databáza sa automaticky vytvorí pri prvom spustení aplikácie.
+## Štruktúra projektu
 
-## Príspevky a hlásenie chýb
-Pre hlásenie chýb alebo navrhnutie vylepšení vytvorte problém (issue) alebo pull request. 
+- `app.py` - webová aplikácia (Flask)
+- `telegram_bot.py` - Telegram bot
+- `shared_components.py` - zdieľané komponenty pre optimalizáciu a kalkuláciu
+- `combined_runner.py` - nástroj na spustenie systému v rôznych módoch
+- `templates/` - HTML šablóny pre webovú aplikáciu
+- `static/` - statické súbory (CSS, JavaScript, obrázky)
+
+## Licencia
+
+Copyright © 2023 

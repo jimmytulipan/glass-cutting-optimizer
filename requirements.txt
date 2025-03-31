@@ -6,4 +6,7 @@ click==8.0.1
 numpy>=1.20.0
 setuptools>=68.0.0
 matplotlib
-reportlab 
+reportlab
+pyTelegramBotAPI>=4.10.0
+SQLAlchemy>=1.4.0
+python-dotenv>=0.20.0 
