@@ -36,143 +36,8 @@ from shared_components import (
     logger, Base, engine, Session, GlassCategory, Glass, Calculation
 )
 
-@dataclass
-class GlassPanel:
-    width: float
-    height: float
-    thickness: float
-    rotated: bool = False
-    
-    def get_dimensions(self) -> Tuple[float, float]:
-        return (self.height, self.width) if self.rotated else (self.width, self.height)
-    
-    def rotate(self):
-        self.rotated = not self.rotated
-        return self
-
-class GlassCalculator:
-    def calculate_price(self, glass_type: str, area: float, waste_percentage: float) -> Dict:
-        # Simulácia ceny za kategórie skla
-        base_prices = {
-            "float": 15.0,
-            "planibel": 20.0,
-            "connex": 30.0,
-            "default": 25.0
-        }
-        
-        # Výber základnej ceny alebo predvolenej hodnoty
-        price_per_m2 = base_prices.get(glass_type.lower(), base_prices["default"])
-        
-        # Výpočet ceny za plochu
-        waste_area = area * (waste_percentage / 100.0)
-        area_price = area * price_per_m2
-        waste_price = waste_area * price_per_m2
-        
-        return {
-            'glass_name': glass_type,
-            'area': round(area, 2),
-            'area_price': round(area_price, 2),
-            'waste_area': round(waste_area, 2),
-            'waste_price': round(waste_price, 2),
-            'total_price': round(area_price + waste_price, 2)
-        }
-
-class CuttingOptimizer:
-    def __init__(self, stock_width: float = STOCK_WIDTH, stock_height: float = STOCK_HEIGHT):
-        self.stock_width = stock_width
-        self.stock_height = stock_height
-        self.min_gap = 0.2
-    
-    def optimize(self, panels: List[GlassPanel]) -> Tuple[List[Dict], float]:
-        # Jednoduchá implementácia prvý vhodný algoritmus
-        sorted_panels = sorted(panels, key=lambda p: p.width * p.height, reverse=True)
-        layout = []
-        
-        # Začiatočný bod (0,0) na ľavom dolnom rohu
-        spaces = [(0, 0, self.stock_width, self.stock_height)]
-        
-        for panel in sorted_panels:
-            width, height = panel.get_dimensions()
-            placed = False
-            
-            for space_index, (space_x, space_y, space_width, space_height) in enumerate(spaces):
-                if width <= space_width and height <= space_height:
-                    # Umiestnenie panelu
-                    layout.append({
-                        'x': space_x,
-                        'y': space_y,
-                        'width': width,
-                        'height': height,
-                        'rotated': panel.rotated
-                    })
-                    placed = True
-                    
-                    # Vytvorenie nových priestorov po umiestnení
-                    new_spaces = []
-                    if space_width - width > 0:
-                        new_spaces.append((
-                            space_x + width,
-                            space_y,
-                            space_width - width,
-                            height
-                        ))
-                    if space_height - height > 0:
-                        new_spaces.append((
-                            space_x,
-                            space_y + height,
-                            space_width,
-                            space_height - height
-                        ))
-                    
-                    spaces = spaces[:space_index] + spaces[space_index+1:] + new_spaces
-                    break
-            
-            if not placed:
-                # Skúsime otočiť panel
-                panel.rotate()
-                width, height = panel.get_dimensions()
-                
-                for space_index, (space_x, space_y, space_width, space_height) in enumerate(spaces):
-                    if width <= space_width and height <= space_height:
-                        # Umiestnenie otočeného panelu
-                        layout.append({
-                            'x': space_x,
-                            'y': space_y,
-                            'width': width,
-                            'height': height,
-                            'rotated': panel.rotated
-                        })
-                        placed = True
-                        
-                        # Vytvorenie nových priestorov po umiestnení
-                        new_spaces = []
-                        if space_width - width > 0:
-                            new_spaces.append((
-                                space_x + width,
-                                space_y,
-                                space_width - width,
-                                height
-                            ))
-                        if space_height - height > 0:
-                            new_spaces.append((
-                                space_x,
-                                space_y + height,
-                                space_width,
-                                space_height - height
-                            ))
-                        
-                        spaces = spaces[:space_index] + spaces[space_index+1:] + new_spaces
-                        break
-        
-        # Výpočet využitia a odpadu
-        total_panels_area = sum(p.width * p.height for p in panels) / 10000  # v m²
-        stock_area = (self.stock_width * self.stock_height) / 10000  # v m²
-        waste_percentage = ((stock_area - total_panels_area) / stock_area) * 100 if stock_area > 0 else 0
-        
-        return layout, waste_percentage
-
-    def calculate_total_area(self, panels: List[GlassPanel]) -> float:
-        return sum(panel.width * panel.height for panel in panels) / 10000  # v m²
+# Inicializácia databázy
+initialize_database()
 
 @app.route('/')
 def index():
@@ -188,6 +53,7 @@ def optimize():
     """API endpoint pre optimalizáciu rozloženia skiel."""
     try:
         data = request.json
+        logger.info(f"Prijaté dáta: {data}")
         
         # Kontrola vstupných údajov
         if not data or 'dimensions' not in data or 'stockSize' not in data:
@@ -196,6 +62,8 @@ def optimize():
         dimensions_text = data['dimensions']
         stock_width = float(data['stockSize']['width'])
         stock_height = float(data['stockSize']['height'])
+        
+        logger.info(f"Parametre: rozmery={dimensions_text}, tabula={stock_width}x{stock_height}")
         
         # Parsovanie rozmerov
         dimensions = parse_dimensions(dimensions_text)
@@ -207,6 +75,8 @@ def optimize():
         for width, height in dimensions:
             if validate_dimensions(width, height, stock_width, stock_height):
                 panels.append(GlassPanel(width, height))
+            else:
+                logger.warning(f"Neplatný rozmer: {width}x{height}")
         
         if not panels:
             return jsonify({'error': 'Žiadne platné rozmery skiel'}), 400
@@ -228,6 +98,8 @@ def optimize():
             sheet_results = {
                 'sheet_number': i + 1,
                 'waste_percentage': round(waste, 2),
+                'stock_width': stock_width,
+                'stock_height': stock_height,
                 'panels': []
             }
             
@@ -237,7 +109,7 @@ def optimize():
                     'y': y,
                     'width': width,
                     'height': height,
-                    'panel_idx': panel_idx
+                    'rotated': width != panels[panel_idx].width
                 })
                 
             results.append(sheet_results)
@@ -253,6 +125,8 @@ def optimize():
             'dimensions': dimensions_text,
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
+        
+        logger.info(f"Optimalizácia úspešná: {len(all_layouts)} tabúľ, odpad: {total_waste/len(all_layouts):.2f}%")
         
         return jsonify({
             'success': True,
@@ -271,6 +145,7 @@ def calculate_price():
     """API endpoint pre výpočet ceny."""
     try:
         data = request.json
+        logger.info(f"Prijaté dáta pre výpočet ceny: {data}")
         
         # Kontrola vstupných údajov
         if not data or 'glass_id' not in data or 'area' not in data:
@@ -282,7 +157,10 @@ def calculate_price():
         
         # Výpočet ceny
         calculator = GlassCalculator(Session())
-        result = calculator.get_glass_price(glass_id, area * 100, 100)
+        # Použijeme 1 ako náhradu za šírku a výšku, keďže máme už plochu
+        width_placeholder = 100
+        height_placeholder = area * 10000 / width_placeholder  # aby width * height / 10000 = area
+        result = calculator.get_glass_price(glass_id, width_placeholder, height_placeholder)
         
         if 'error' in result:
             return jsonify({'error': result['error']}), 400
@@ -296,9 +174,11 @@ def calculate_price():
             'waste_percentage': waste_percentage,
             'area_price': result['area_price'],
             'waste_price': result['waste_price'],
-            'total_price': result['total_price'],
+            'total_price': result['area_price'] + result['waste_price'],
             'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
+        
+        logger.info(f"Výpočet ceny úspešný: {result['glass_name']}, plocha: {area}m², cena: {result['area_price'] + result['waste_price']}€")
         
         return jsonify({
             'success': True,
@@ -405,12 +285,39 @@ def draw_layout_to_buffer(layout, stock_width, stock_height, scale=1.0):
 def generate_pdf():
     """API endpoint pre generovanie PDF reportu."""
     try:
-        # Získanie údajov z session
+        data = request.json
+        logger.info(f"Generujem PDF zo zaslaných dát: {data}")
+        
+        # Získanie dát zo session ak nie sú zaslané priamo
         optimization = session.get('optimization_results')
         price = session.get('price_calculation')
         
-        if not optimization:
-            return jsonify({'error': 'Najprv vykonajte optimalizáciu'}), 400
+        # Override session data s novými dátami
+        if data:
+            if 'stock_width' in data and 'stock_height' in data:
+                if not optimization:
+                    optimization = {}
+                optimization['stock_size'] = {
+                    'width': data['stock_width'], 
+                    'height': data['stock_height']
+                }
+            if 'layout' in data:
+                if not optimization:
+                    optimization = {}
+                optimization['layouts'] = [data['layout']]
+            if 'waste_percentage' in data:
+                if not optimization:
+                    optimization = {}
+                optimization['total_waste'] = data['waste_percentage']
+            if 'total_area' in data:
+                if not optimization:
+                    optimization = {}
+                optimization['total_area'] = data['total_area']
+            if 'price_data' in data:
+                price = data['price_data']
+        
+        if not optimization or not optimization.get('layouts'):
+            return jsonify({'error': 'Chýbajú údaje o optimalizácii skla'}), 400
             
         # Vytvorenie PDF bufferu
         buffer = io.BytesIO()
@@ -426,17 +333,22 @@ def generate_pdf():
         # Základné informácie
         c.drawString(2*cm, height - 3*cm, f"Dátum: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
         c.drawString(2*cm, height - 3.5*cm, f"Rozmery tabule: {optimization['stock_size']['width']}x{optimization['stock_size']['height']} cm")
-        c.drawString(2*cm, height - 4*cm, f"Počet tabúľ: {optimization['sheet_count']}")
+        c.drawString(2*cm, height - 4*cm, f"Počet tabúľ: {optimization.get('sheet_count', len(optimization['layouts']))}")
         c.drawString(2*cm, height - 4.5*cm, f"Celková plocha: {optimization['total_area']:.2f} m²")
-        c.drawString(2*cm, height - 5*cm, f"Priemerný odpad: {optimization['total_waste']/optimization['sheet_count']:.1f}%")
+        
+        sheet_count = optimization.get('sheet_count', len(optimization['layouts']))
+        average_waste = optimization['total_waste'] / sheet_count if sheet_count > 0 else 0
+        c.drawString(2*cm, height - 5*cm, f"Priemerný odpad: {average_waste:.1f}%")
         
         # Informácie o cenách
         if price:
             c.drawString(2*cm, height - 6*cm, f"Typ skla: {price['glass_name']}")
-            c.drawString(2*cm, height - 6.5*cm, f"Cena za m²: {price['area_price']/price['area']:.2f} €")
+            area_price_per_m2 = price['area_price'] / price['area'] if price['area'] > 0 else 0
+            c.drawString(2*cm, height - 6.5*cm, f"Cena za m²: {area_price_per_m2:.2f} €")
             c.drawString(2*cm, height - 7*cm, f"Cena za sklo: {price['area_price']:.2f} €")
             c.drawString(2*cm, height - 7.5*cm, f"Cena za odpad: {price['waste_price']:.2f} €")
-            c.drawString(2*cm, height - 8*cm, f"Celková cena: {price['total_price']:.2f} €")
+            total_price = price['area_price'] + price['waste_price']
+            c.drawString(2*cm, height - 8*cm, f"Celková cena: {total_price:.2f} €")
         
         # Pridáme kresby jednotlivých tabúľ na nové stránky
         for i, layout in enumerate(optimization['layouts']):
@@ -472,15 +384,21 @@ def generate_pdf():
         c.save()
         buffer.seek(0)
         
-        # Generujeme názov súboru
-        filename = f"optimalizacia_skla_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
-        
-        return send_file(
+        # Nastavíme správne hlavičky pre automatické stiahnutie súboru
+        filename = f"rezaci_program_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        response = send_file(
             buffer,
             as_attachment=True,
             download_name=filename,
             mimetype='application/pdf'
         )
+        
+        # Cache control pre IE
+        response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        response.headers["Pragma"] = "no-cache"
+        response.headers["Expires"] = "0"
+        
+        return response
         
     except Exception as e:
         logger.exception(f"Chyba pri generovaní PDF: {str(e)}")
