@@ -1,9 +1,9 @@
 // Konštanty pre API
 const apiBaseUrl = '';
 
-// Globálne premenné pre uloženie výsledkov optimalizácie
-let optimizationResult = null;
-let currentPriceData = null;
+// Globálne premenné
+let currentOptimizationData = null; // Pre uloženie výsledkov poslednej optimalizácie
+let currentPriceData = null; // Globálna premenná pre uloženie cenových údajov
 
 // Pomocné funkcie
 function formatNumber(number, decimals = 2) {
@@ -188,7 +188,7 @@ function startNewCalculation() {
     document.getElementById('priceResult').classList.add('d-none');
     
     // Reset globálnej premennej
-    optimizationResult = null;
+    currentOptimizationData = null;
     currentPriceData = null;
     
     // Reset výberu kategórií a typov
@@ -200,24 +200,23 @@ function startNewCalculation() {
     showAlert('Formuláre boli vyčistené. Môžete začať nový výpočet.', 'info');
 }
 
-// Inicializácia pri načítaní stránky
+// Nastavenie event listenerov po načítaní DOM
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM načítaný, inicializujem aplikáciu');
-    
-    // Načítanie uloženej témy
-    loadTheme();
-    
-    // Inicializácia formulárov a tlačidiel
-    initEventListeners();
-    
-    // Načítanie kategórií skla
-    loadGlassCategories();
-    
-    // Načítanie histórie do modálneho okna
-    loadHistoryFromLocalStorage();
-    
-    // Inicializácia tlačidla "späť hore"
-    handleBackToTopButton();
+    // Získanie referencií na elementy formulára
+    const glassSheetSelect = document.getElementById('glassSheet');
+    const optimizeForm = document.getElementById('optimizeForm');
+    const priceForm = document.getElementById('priceForm');
+    const resetBtn = document.getElementById('resetBtn');
+    const pdfButton = document.getElementById('pdfButton'); // Aktualizované ID tlačidla
+
+    // Pridanie handlerov pre udalosti
+    optimizeForm.addEventListener('submit', handleOptimizeSubmit);
+    priceForm.addEventListener('submit', handlePriceCalculation);
+    resetBtn.addEventListener('click', startNewCalculation);
+    pdfButton.addEventListener('click', handleDownloadPdf); // Pre tlačidlo PDF
+
+    // Inicializácia
+    startNewCalculation();
 });
 
 function initEventListeners() {
@@ -309,7 +308,7 @@ function handleOptimizeSubmit(event) {
             resultContainer.classList.add('d-none');
             return;
         }
-        optimizationResult = data;
+        currentOptimizationData = data;
         currentPriceData = null;
         displayOptimizationResults(data);
         resultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -335,36 +334,49 @@ function displayOptimizationResults(data) {
     document.getElementById('totalArea').textContent = formatNumber(sheet.total_area);
     document.getElementById('wastePercentage').textContent = formatNumber(sheet.waste_percentage);
     
-    // Odstránenie akéhokoľvek predošlého obsahu a vloženie nového SVG
     optimizationResultDiv.innerHTML = '';
     
-    // Výpočet základných rozmerov pre SVG - necháme CSS riadiť výšku
-    const containerWidth = optimizationResultDiv.offsetWidth || 600; 
-    // const containerHeight = window.innerHeight * 0.6; // Odstránené, necháme CSS
+    if (!sheet.layout || sheet.layout.length === 0) {
+        optimizationResultDiv.innerHTML = '<div class="text-center p-3 text-muted">Žiadne kusy na zobrazenie.</div>';
+        return;
+    }
+
+    // --- Začiatok výpočtu hraníc pre zoom ---
+    let minX = sheet.stock_width, minY = sheet.stock_height, maxX = 0, maxY = 0;
+    sheet.layout.forEach(panel => {
+        minX = Math.min(minX, panel.x);
+        minY = Math.min(minY, panel.y);
+        maxX = Math.max(maxX, panel.x + panel.width);
+        maxY = Math.max(maxY, panel.y + panel.height);
+    });
+
+    // Pridanie malého okraja (paddingu) okolo kusov
+    const paddingPercentage = 0.05; // 5% padding
+    const contentWidth = maxX - minX;
+    const contentHeight = maxY - minY;
+    const paddingX = contentWidth * paddingPercentage;
+    const paddingY = contentHeight * paddingPercentage;
+
+    // Výpočet nového viewBoxu - orezaný na obsah s paddingom
+    const vbX = Math.max(0, minX - paddingX);
+    const vbY = Math.max(0, minY - paddingY);
+    const vbWidth = contentWidth + 2 * paddingX;
+    const vbHeight = contentHeight + 2 * paddingY;
+    // --- Koniec výpočtu hraníc pre zoom ---
     
     // Vytvorenie SVG elementu
     const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svgElement.setAttribute('width', '100%');
-    svgElement.setAttribute('height', '100%'); // Výška bude riadená CSS rodiča
-    svgElement.setAttribute('viewBox', `0 0 ${sheet.stock_width} ${sheet.stock_height}`);
+    svgElement.setAttribute('height', '100%');
+    // Nastavenie vypočítaného viewBox pre zoom
+    svgElement.setAttribute('viewBox', `${vbX} ${vbY} ${vbWidth} ${vbHeight}`); 
     svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     svgElement.classList.add('layout-visualization');
-    
-    // Vytvorenie podkladu tabule
-    const rectBackground = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-    rectBackground.setAttribute('x', '0');
-    rectBackground.setAttribute('y', '0');
-    rectBackground.setAttribute('width', sheet.stock_width);
-    rectBackground.setAttribute('height', sheet.stock_height);
-    rectBackground.setAttribute('fill', 'var(--sheet-layout-bg)');
-    rectBackground.setAttribute('stroke', 'var(--border-color)');
-    rectBackground.setAttribute('stroke-width', '0.5');
-    svgElement.appendChild(rectBackground);
     
     // Farby pre jednotlivé panely
     const colors = ['#4a76fd', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6c757d'];
     
-    // Vykreslenie jednotlivých panelov
+    // Vykreslenie jednotlivých panelov (už v rámci nového viewBoxu)
     sheet.layout.forEach((panel, index) => {
         const color = colors[index % colors.length];
         const x = panel.x;
@@ -372,7 +384,6 @@ function displayOptimizationResults(data) {
         const width = panel.width;
         const height = panel.height;
         
-        // Vytvorenie panelu (obdĺžnika)
         const rectPanel = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
         rectPanel.setAttribute('x', x);
         rectPanel.setAttribute('y', y);
@@ -380,33 +391,32 @@ function displayOptimizationResults(data) {
         rectPanel.setAttribute('height', height);
         rectPanel.setAttribute('fill', color);
         rectPanel.setAttribute('stroke', 'rgba(255,255,255,0.4)');
-        rectPanel.setAttribute('stroke-width', '0.3');
+        rectPanel.setAttribute('stroke-width', 0.3 * Math.sqrt(vbWidth / sheet.stock_width)); // Upraviť hrúbku čiary podľa zoomu
         svgElement.appendChild(rectPanel);
         
-        // Výpočet optimálnej veľkosti fontu - VÝRAZNÉ ZVÄČŠENIE
+        // Výpočet veľkosti fontu zostáva rovnaký, ale bude vyzerať väčší kvôli zoomu
         const minDim = Math.min(width, height);
-        let fontSize = minDim * 0.45; // Ešte väčší násobok
-        // if (width * height < 200) fontSize *= 0.9; // Odstránené zjednodušenie
-        fontSize = Math.max(fontSize, 7); // VÝRAZNE väčšia minimálna veľkosť
-        fontSize = Math.min(fontSize, 20); // Väčšia maximálna veľkosť
+        let fontSize = minDim * 0.45; 
+        fontSize = Math.max(fontSize, 7); 
+        fontSize = Math.min(fontSize, 20); 
         
-        // Pridanie textu s rozmermi a OB RYSOM
         const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         textElement.setAttribute('x', x + width/2);
         textElement.setAttribute('y', y + height/2);
         textElement.setAttribute('dominant-baseline', 'middle');
         textElement.setAttribute('text-anchor', 'middle');
         textElement.setAttribute('font-size', fontSize);
-        textElement.setAttribute('fill', 'white'); // Biela výplň
-        textElement.setAttribute('stroke', 'black'); // Čierny obrys
-        textElement.setAttribute('stroke-width', 0.3); // Hrúbka obrysu
-        textElement.setAttribute('paint-order', 'stroke'); // Vykresliť najprv obrys
-        textElement.setAttribute('style', 'font-weight: 600;'); // Odstránený filter
+        textElement.setAttribute('fill', 'white');
+        textElement.setAttribute('stroke', 'black');
+        // Mierne upravíme hrúbku obrysu podľa zoomu
+        const strokeWidth = 0.3 * Math.sqrt(vbWidth / sheet.stock_width);
+        textElement.setAttribute('stroke-width', Math.max(strokeWidth, 0.1)); 
+        textElement.setAttribute('paint-order', 'stroke');
+        textElement.setAttribute('style', 'font-weight: 600;');
         textElement.textContent = `${panel.width}x${panel.height}${panel.rotated ? 'Ⓡ' : ''}`;
         svgElement.appendChild(textElement);
     });
     
-    // Pridanie SVG do DOM
     optimizationResultDiv.appendChild(svgElement);
 }
 
@@ -481,13 +491,13 @@ function handleCategoryChange() {
 function handlePriceCalculation(event) {
     event.preventDefault();
     
-    if (!optimizationResult || !optimizationResult.sheets || optimizationResult.sheets.length === 0) {
+    if (!currentOptimizationData || !currentOptimizationData.sheets || currentOptimizationData.sheets.length === 0) {
         showAlert('Najprv spustite úspešnú optimalizáciu rozloženia.', 'warning');
         return;
     }
     
-    const totalArea = optimizationResult.sheets[0].total_area;
-    const wastePercentage = optimizationResult.sheets[0].waste_percentage;
+    const totalArea = currentOptimizationData.sheets[0].total_area;
+    const wastePercentage = currentOptimizationData.sheets[0].waste_percentage;
     
     const glassTypeSelect = document.getElementById('glassType');
     const selectedOption = glassTypeSelect.options[glassTypeSelect.selectedIndex];
@@ -579,69 +589,76 @@ function displayPriceCalculation(data) {
 
 // Funkcia na stiahnutie PDF
 function handleDownloadPdf() {
-    if (!optimizationResult || !optimizationResult.sheets || optimizationResult.sheets.length === 0) {
-        showAlert('Nie sú dostupné žiadne výsledky optimalizácie na generovanie PDF.', 'warning');
+    if (!currentOptimizationData) {
+        showAlert('error', 'Pre stiahnutie PDF musíte najprv spustiť optimalizáciu');
         return;
     }
     
-    const sheetData = optimizationResult.sheets[0];
-    const stockWidth = optimizationResult.stock_width; // Získanie z výsledku optimalizácie, ak je tam
-    const stockHeight = optimizationResult.stock_height; // Alebo použiť hodnoty z formulára
+    const pdfBtn = document.getElementById('pdfButton');
+    pdfBtn.disabled = true;
+    pdfBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generujem PDF...';
     
-    // Pripravenie dát pre API
-    const pdfData = {
-        sheet_data: {
-            layout: sheetData.layout,
-            stock_width: stockWidth || 321, // Fallback
-            stock_height: stockHeight || 225, // Fallback
-            total_area: sheetData.total_area,
-            waste_percentage: sheetData.waste_percentage
-        },
-        price_data: currentPriceData // Použijeme uložené cenové dáta
+    const sheet_data = currentOptimizationData.sheets[0];
+    
+    // Príprava dát pre PDF
+    const data = {
+        stock_width: sheet_data.stock_width,
+        stock_height: sheet_data.stock_height,
+        layout: sheet_data.layout,
+        waste_percentage: sheet_data.waste_percentage,
+        total_area: sheet_data.total_area,
+        timestamp: new Date().getTime() // Pridanie časovej pečiatky pre zabránenie cachovania
     };
-
-    const downloadBtn = document.getElementById('downloadPdfBtn');
-    const originalBtnText = downloadBtn.innerHTML;
-    downloadBtn.disabled = true;
-    downloadBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generujem...';
-
-    fetch(`${apiBaseUrl}/api/generate-pdf`, {
+    
+    // Odoslanie dát na backend a spracovanie odpovede ako binárneho PDF
+    fetch('/generate_pdf', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(pdfData)
+        headers: {
+            'Content-Type': 'application/json',
+            // Pridanie hlavičiek proti cachovaniu
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
+        },
+        body: JSON.stringify(data)
     })
     .then(response => {
         if (!response.ok) {
-            // Pokúsime sa získať chybovú správu z JSON odpovede
-            return response.json().then(err => { 
-                throw new Error(err.error || `Chyba servera: ${response.status}`); 
-            }).catch(() => {
-                 // Ak JSON nie je dostupný, vyhodíme všeobecnú chybu
-                throw new Error(`Chyba servera pri generovaní PDF: ${response.status}`);
+            return response.json().then(err => {
+                throw new Error(err.error || 'Nastala chyba pri generovaní PDF');
             });
         }
-        return response.blob(); // Očakávame blob (binárne dáta)
+        return response.blob();
     })
     .then(blob => {
-        // Vytvorenie odkazu a spustenie stiahnutia
+        // Vytvorenie dočasného URL pre stiahnutie PDF
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
-        a.download = 'optimalizacia_rezu.pdf';
+        
+        // Generovanie unikátneho názvu súboru s časovou značkou
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        a.download = `rezaci_program_report_${timestamp}.pdf`;
+        
+        // Iniciovanie stiahnutia
         document.body.appendChild(a);
         a.click();
+        
+        // Cleanup
         window.URL.revokeObjectURL(url);
-        a.remove();
-        showAlert('PDF súbor bol vygenerovaný.', 'success');
+        document.body.removeChild(a);
+        
+        // Obnovenie tlačidla
+        pdfBtn.disabled = false;
+        pdfBtn.innerHTML = '<i class="fas fa-file-pdf"></i> PDF';
     })
     .catch(error => {
-        console.error('Chyba pri generovaní PDF:', error);
-        showAlert(`Nastala chyba pri generovaní PDF: ${error.message}`, 'danger');
-    })
-    .finally(() => {
+        console.error('Error:', error);
+        showAlert('error', error.message || 'Nastala chyba pri generovaní PDF');
+        
         // Obnovenie tlačidla
-        downloadBtn.disabled = false;
-        downloadBtn.innerHTML = originalBtnText;
+        pdfBtn.disabled = false;
+        pdfBtn.innerHTML = '<i class="fas fa-file-pdf"></i> PDF';
     });
 } 
