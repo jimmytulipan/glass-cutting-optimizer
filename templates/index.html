@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>YT Transcriber</title>
+    <title>Optimalizátor Rezania Skla</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -12,12 +12,14 @@
     <nav class="navbar navbar-expand-lg">
         <div class="container-fluid">
             <div class="d-flex align-items-center">
-                <i class="fa-brands fa-youtube me-2 fs-4 text-danger"></i>
-                <a class="navbar-brand" href="#">YT Transcriber</a>
+                <a class="navbar-brand" href="#">
+                    <i class="fas fa-cut me-2"></i>
+                    Optimalizátor Rezania Skla
+                 </a>
             </div>
             <ul class="navbar-nav">
                 <li class="nav-item">
-                    <a class="nav-link" href="https://github.com/jimmytulipan" target="_blank">
+                    <a class="nav-link" href="https://github.com/jimmytulipan/glass-cutting-optimizer" target="_blank">
                         <i class="fab fa-github"></i> GitHub
                     </a>
                 </li>
@@ -27,9 +29,9 @@
 
     <div class="container-fluid main-container">
         <div class="row">
-            <div class="col-md-3 sidebar">
+            <div class="col-lg-3 col-md-4 sidebar">
                 <div class="sidebar-content">
-                    <h5>HISTÓRIA POŽIADAVIEK</h5>
+                    <h5><i class="fas fa-history me-2"></i>HISTÓRIA KALKULÁCIÍ</h5>
                     <div id="historyContainer" class="history-list">
                         <div class="text-center text-muted py-3" id="emptyHistory">
                             Zatiaľ žiadna história
@@ -41,31 +43,19 @@
                 </div>
             </div>
             
-            <div class="col-md-9 main-content">
-                <div class="video-input-section">
-                    <div class="input-group mb-3">
-                        <span class="input-group-text">
-                            <i class="fas fa-link"></i>
-                        </span>
-                        <input type="text" class="form-control" id="youtubeUrl" placeholder="Zadajte URL YouTube videa nižšie pre získanie prepisu v slovenčine">
-                        <button class="btn btn-primary" type="button" id="fetchTranscriptBtn">
-                            <i class="fas fa-download"></i> Získať prepis
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="row mt-4">
+            <div class="col-lg-9 col-md-8 main-content">
+                <div class="row">
                     <div class="col-lg-6">
-                        <div class="card mb-4 dimension-card">
+                        <div class="card mb-4 dimension-card fade-in">
                             <div class="card-header">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0"><i class="fas fa-cut me-2"></i>Optimalizácia rezania skla</h5>
+                                    <h5 class="mb-0"><i class="fas fa-ruler-combined me-2"></i>Zadanie rozmerov</h5>
                                 </div>
                             </div>
                             <div class="card-body">
                                 <form id="optimizeForm">
                                     <div class="form-group mb-3">
-                                        <label for="stockSize">Rozmer tabule:</label>
+                                        <label for="stockSize" class="form-label">Rozmer tabule:</label>
                                         <select class="form-select" id="stockSize">
                                             <option value="standard">321 x 225 cm</option>
                                             <option value="custom">Vlastný rozmer</option>
@@ -74,41 +64,43 @@
                                     
                                     <div class="row mb-3 d-none" id="customSizeFields">
                                         <div class="col-6">
-                                            <input type="number" class="form-control" id="customWidth" placeholder="Šírka (cm)">
+                                            <label for="customWidth" class="form-label">Šírka (cm)</label>
+                                            <input type="number" class="form-control" id="customWidth" placeholder="Šírka">
                                         </div>
                                         <div class="col-6">
-                                            <input type="number" class="form-control" id="customHeight" placeholder="Výška (cm)">
+                                            <label for="customHeight" class="form-label">Výška (cm)</label>
+                                            <input type="number" class="form-control" id="customHeight" placeholder="Výška">
                                         </div>
                                     </div>
                                     
                                     <div class="form-group mb-3">
-                                        <label for="dimensions">Rozmery skiel (cm):</label>
+                                        <label for="dimensions" class="form-label">Požadované rozmery skiel (cm):</label>
                                         <textarea class="form-control" id="dimensions" rows="4" placeholder="Napr.: 100x50-80x60-120x40"></textarea>
                                         <small class="form-text text-muted">Zadajte rozmery oddelené pomlčkou (-), formát: šírka x výška</small>
                                     </div>
                                     
                                     <button type="submit" class="btn btn-primary w-100">
-                                        <i class="fas fa-calculator me-2"></i>Optimalizovať
+                                        <i class="fas fa-cogs me-2"></i>Optimalizovať
                                     </button>
                                 </form>
                             </div>
                         </div>
                         
-                        <div class="card mb-4">
+                        <div class="card mb-4 fade-in" style="animation-delay: 0.1s;">
                             <div class="card-header">
                                 <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0"><i class="fas fa-money-bill me-2"></i>Výpočet ceny</h5>
+                                    <h5 class="mb-0"><i class="fas fa-euro-sign me-2"></i>Výpočet ceny</h5>
                                 </div>
                             </div>
                             <div class="card-body">
                                 <form id="priceForm">
                                     <div class="form-group mb-3">
-                                        <label for="glassCategory">Kategória skla:</label>
+                                        <label for="glassCategory" class="form-label">Kategória skla:</label>
                                         <select class="form-select" id="glassCategory"></select>
                                     </div>
                                     
                                     <div class="form-group mb-3">
-                                        <label for="glassType">Typ skla:</label>
+                                        <label for="glassType" class="form-label">Typ skla:</label>
                                         <select class="form-select" id="glassType"></select>
                                     </div>
                                     
@@ -121,30 +113,30 @@
                     </div>
                     
                     <div class="col-lg-6">
-                        <div id="resultContainer" class="d-none">
+                        <div id="resultContainer" class="d-none fade-in" style="animation-delay: 0.2s;">
                             <div class="card mb-4">
                                 <div class="card-header">
                                     <div class="d-flex justify-content-between align-items-center">
-                                        <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Výsledky optimalizácie</h5>
+                                        <h5 class="mb-0"><i class="fas fa-th me-2"></i>Výsledky optimalizácie</h5>
                                     </div>
                                 </div>
                                 <div class="card-body sheet-layout">
-                                    <div id="optimizationResult"></div>
-                                    <div class="result-summary mt-3">
+                                    <div id="optimizationResult" class="mb-3"></div>
+                                    <div class="result-summary">
                                         <div class="d-flex justify-content-between mb-2">
-                                            <span><strong>Celková plocha:</strong></span>
-                                            <span id="totalArea">0</span> m²
+                                            <span><i class="fas fa-vector-square me-1"></i>Celková plocha:</span>
+                                            <span><strong id="totalArea">0</strong> m²</span>
                                         </div>
                                         <div class="d-flex justify-content-between">
-                                            <span><strong>Odpad:</strong></span>
-                                            <span id="wastePercentage">0</span>%
+                                            <span><i class="fas fa-trash me-1"></i>Odpad:</span>
+                                            <span><strong id="wastePercentage">0</strong>%</span>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <div id="priceResult" class="d-none">
+                        <div id="priceResult" class="d-none fade-in" style="animation-delay: 0.3s;">
                             <div class="card mb-4">
                                 <div class="card-header">
                                     <div class="d-flex justify-content-between align-items-center">
@@ -154,16 +146,16 @@
                                 <div class="card-body">
                                     <h6 id="glassName" class="text-primary mb-3">-</h6>
                                     <div class="price-item d-flex justify-content-between mb-2">
-                                        <div>Plocha skiel: <span id="area">0</span> m²</div>
+                                        <div><i class="fas fa-check me-1"></i>Plocha skiel: <span id="area">0</span> m²</div>
                                         <div><span id="areaPrice">0</span> €</div>
                                     </div>
                                     <div class="price-item d-flex justify-content-between mb-2">
-                                        <div>Odpad: <span id="wasteArea">0</span> m²</div>
+                                        <div><i class="fas fa-recycle me-1"></i>Odpad: <span id="wasteArea">0</span> m²</div>
                                         <div><span id="wastePrice">0</span> €</div>
                                     </div>
-                                    <hr>
+                                    <hr class="my-2">
                                     <div class="price-item d-flex justify-content-between total-price">
-                                        <div>Celková cena:</div>
+                                        <div><i class="fas fa-wallet me-1"></i>Celková cena:</div>
                                         <div><span id="totalPrice">0</span> €</div>
                                     </div>
                                 </div>
@@ -171,16 +163,20 @@
                         </div>
                     </div>
                 </div>
-                <div class="alerts-container">
-                    <div id="alerts"></div>
-                </div>
+                
             </div>
         </div>
     </div>
     
+    <button type="button" class="btn btn-primary" id="btn-back-to-top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+    
+    <div class="alerts-container"></div>
+    
     <footer class="footer">
         <div class="container text-center">
-            <span>© 2024 YT Transcriber - Nástroj na prepis YouTube videí a optimalizáciu rezania skla</span>
+            <span>© 2024 Optimalizátor Rezania Skla - Vytvorené s <i class="fas fa-heart text-danger"></i></span>
         </div>
     </footer>
 
