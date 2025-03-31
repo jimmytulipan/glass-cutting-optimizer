@@ -509,6 +509,7 @@ function handlePriceCalculation(event) {
     
     const priceResultDiv = document.getElementById('priceResult');
     priceResultDiv.classList.remove('d-none');
+    // Zobrazenie loading state
     priceResultDiv.innerHTML = `
         <div class="card">
             <div class="card-header bg-success text-white">
@@ -530,31 +531,39 @@ function handlePriceCalculation(event) {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.price) {
-            // Vytvorenie HTML pre výsledok ceny
+            // --- OPRAVA: Správne vloženie dát do dynamického HTML --- 
+            const area = data.price.area || 0;
+            const areaPrice = data.price.area_price || 0;
+            const wasteArea = data.price.waste_area || 0;
+            const wastePrice = data.price.waste_price || 0;
+            const totalPrice = areaPrice + wastePrice;
+            const glassName = data.price.glass_name || 'Neznáme sklo';
+
             priceResultDiv.innerHTML = `
                 <div class="card fade-in">
                     <div class="card-header bg-success text-white">
                          <h5 class="mb-0"><i class="fas fa-tag me-2"></i>Výsledok výpočtu ceny</h5>
                     </div>
                     <div class="card-body">
-                        <h6 class="mb-3 text-primary">${data.price.glass_name || 'Neznáme sklo'}</h6>
+                        <h6 class="mb-3 text-primary">${glassName}</h6>
                         <div class="price-item">
-                            <div><i class="fas fa-check text-muted me-1"></i> Plocha skiel (${formatNumber(data.price.area || 0)} m²):</div>
-                            <div>${formatNumber(data.price.area_price || 0)} €</div>
+                            <div><i class="fas fa-check text-muted me-1"></i> Plocha skiel (${formatNumber(area)} m²):</div>
+                            <div>${formatNumber(areaPrice)} €</div>
                         </div>
                         <div class="price-item">
-                            <div><i class="fas fa-recycle text-muted me-1"></i> Odpad (${formatNumber(data.price.waste_area || 0)} m²):</div>
-                            <div>${formatNumber(data.price.waste_price || 0)} €</div>
+                            <div><i class="fas fa-recycle text-muted me-1"></i> Odpad (${formatNumber(wasteArea)} m²):</div>
+                            <div>${formatNumber(wastePrice)} €</div>
                         </div>
                         <div class="price-item total-price mt-3">
                             <div><i class="fas fa-wallet me-1"></i> Celková cena:</div>
-                            <div>${formatNumber((data.price.area_price || 0) + (data.price.waste_price || 0))} €</div>
+                            <div>${formatNumber(totalPrice)} €</div>
                         </div>
                     </div>
                 </div>
             `;
+            // --------------------------------------------------------
             currentPriceData = data.price; // Uloženie pre PDF
-            addToHistory('Výpočet ceny', `Typ: ${glassType}, Cena: ${formatNumber((data.price.area_price || 0) + (data.price.waste_price || 0))} €`);
+            addToHistory('Výpočet ceny', `Typ: ${glassType}, Cena: ${formatNumber(totalPrice)} €`);
             showAlert('Cena vypočítaná.', 'success');
             priceResultDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         } else {
