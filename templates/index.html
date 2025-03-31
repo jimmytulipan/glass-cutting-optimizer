@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="sk" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Optimalizátor rezania skla</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="/">
+                <i class="fas fa-cut me-2"></i>
+                <span>Optimalizátor rezania skla</span>
+            </a>
+            
+            <div class="theme-container d-lg-none">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-sun theme-icon light-icon"></i>
+                    <label class="theme-switch mx-1">
+                        <input type="checkbox" id="themeSwitchMobile">
+                        <span class="slider"></span>
+                    </label>
+                    <i class="fas fa-moon theme-icon dark-icon"></i>
+                </div>
+            </div>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center" href="#" id="showHistoryBtn">
+                            <i class="fas fa-history me-1"></i><span>História</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link d-flex align-items-center" href="#" id="helpBtn">
+                            <i class="fas fa-question-circle me-1"></i><span>Pomoc</span>
+                        </a>
+                    </li>
+                    <li class="nav-item d-none d-lg-flex align-items-center mx-2">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-sun theme-icon light-icon"></i>
+                            <label class="theme-switch">
+                                <input type="checkbox" id="themeSwitch">
+                                <span class="slider"></span>
+                            </label>
+                            <i class="fas fa-moon theme-icon dark-icon"></i>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container py-4">
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0 d-flex align-items-center"><i class="fas fa-cog me-2"></i>Nastavenia výpočtu</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="optimizeForm">
+                            <div class="row mb-3">
+                                <div class="col-md-4 col-12 mb-2">
+                                    <label for="stockSize" class="form-label">Rozmer tabule</label>
+                                    <select class="form-select form-select-mobile" id="stockSize">
+                                        <option value="321x225">321 x 225 cm</option>
+                                        <option value="160.5x255">160.5 x 255 cm</option>
+                                        <option value="custom">Vlastné rozmery</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4 col-6 custom-size d-none mb-2">
+                                    <label for="customWidth" class="form-label">Šírka (cm)</label>
+                                    <input type="number" class="form-control" id="customWidth" step="0.1" min="10">
+                                </div>
+                                <div class="col-md-4 col-6 custom-size d-none mb-2">
+                                    <label for="customHeight" class="form-label">Výška (cm)</label>
+                                    <input type="number" class="form-control" id="customHeight" step="0.1" min="10">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="dimensions" class="form-label">Rozmery skiel</label>
+                                <textarea class="form-control" id="dimensions" rows="3" placeholder="Zadajte rozmery v cm v tvare: 100x50 alebo viac rozmerov: 100x50-200x30-80.5x90.2"></textarea>
+                                <div class="form-text text-muted">
+                                    Formát: šírka × výška v cm, viac rozmerov oddeľte pomlčkou (-) 
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 w-md-auto">
+                                <i class="fas fa-calculator me-1"></i>Vypočítať optimálne rozloženie
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="resultSection" class="d-none">
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0 d-flex align-items-center"><i class="fas fa-check-circle me-2"></i>Výsledky optimalizácie</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-2">
+                                <div class="col-md-4 col-12">
+                                    <div class="card bg-light mb-md-3 mb-2">
+                                        <div class="card-body text-center py-2">
+                                            <h3 id="totalSheets" class="display-4 text-primary">0</h3>
+                                            <p class="text-muted mb-0">Počet tabúľ</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 col-12">
+                                    <div class="card bg-light mb-md-3 mb-2">
+                                        <div class="card-body text-center py-2">
+                                            <h3 id="totalArea" class="display-4 text-primary">0.0</h3>
+                                            <p class="text-muted mb-0">Celková plocha (m²)</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 col-12">
+                                    <div class="card bg-light mb-md-3 mb-2">
+                                        <div class="card-body text-center py-2">
+                                            <h3 id="averageWaste" class="display-4 text-primary">0.0%</h3>
+                                            <p class="text-muted mb-0">Priemerný odpad</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="sheetResults" class="mt-4"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0 d-flex align-items-center"><i class="fas fa-euro-sign me-2"></i>Výpočet ceny</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="priceForm">
+                                <div class="row mb-3">
+                                    <div class="col-md-6 col-12 mb-2">
+                                        <label for="glassCategory" class="form-label">Kategória skla</label>
+                                        <select class="form-select" id="glassCategory">
+                                            <option value="">-- Vyberte kategóriu --</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-6 col-12 mb-2">
+                                        <label for="glassType" class="form-label">Typ skla</label>
+                                        <select class="form-select" id="glassType" disabled>
+                                            <option value="">-- Najprv vyberte kategóriu --</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <button type="submit" class="btn btn-info text-white w-100 w-md-auto" disabled id="calculatePriceBtn">
+                                    <i class="fas fa-calculator me-1"></i>Vypočítať cenu
+                                </button>
+                            </form>
+
+                            <div id="priceResult" class="mt-4 d-none">
+                                <div class="alert alert-info">
+                                    <h5 class="alert-heading">Cenová kalkulácia</h5>
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered mt-3 mb-0">
+                                            <tbody>
+                                                <tr>
+                                                    <th>Typ skla</th>
+                                                    <td id="resultGlassName"></td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Plocha skiel</th>
+                                                    <td><span id="resultArea"></span> m² = <span id="resultAreaPrice"></span> €</td>
+                                                </tr>
+                                                <tr>
+                                                    <th>Plocha odpadu</th>
+                                                    <td><span id="resultWasteArea"></span> m² = <span id="resultWastePrice"></span> €</td>
+                                                </tr>
+                                                <tr class="table-info">
+                                                    <th>Celková cena</th>
+                                                    <td><strong id="resultTotalPrice"></strong> €</td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- History Modal -->
+    <div class="modal fade" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="historyModalLabel">História kalkulácií</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="historyContent" class="table-responsive">
+                        <div class="text-center py-4">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Načítavam...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="clearHistoryBtn">
+                        <i class="fas fa-trash me-1"></i>Vymazať históriu
+                    </button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zavrieť</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="helpModalLabel">Pomoc</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h4>Návod na použitie:</h4>
+                    <ol class="list-group list-group-numbered mb-4">
+                        <li class="list-group-item">Vyberte rozmer tabule z ponuky alebo zadajte vlastné rozmery</li>
+                        <li class="list-group-item">Zadajte rozmery skiel v jednom z formátov:
+                            <ul>
+                                <li>Jeden rozmer: 100x50 (šírka x výška v cm)</li>
+                                <li>Viac rozmerov: 100x50-200x30-80.5x90.2</li>
+                            </ul>
+                        </li>
+                        <li class="list-group-item">Kliknite na tlačidlo "Vypočítať optimálne rozloženie"</li>
+                        <li class="list-group-item">Vyberte kategóriu a typ skla pre výpočet ceny</li>
+                        <li class="list-group-item">Kliknite na "Vypočítať cenu" pre zobrazenie cenovej kalkulácie</li>
+                    </ol>
+                    <h4>Ďalšie funkcie:</h4>
+                    <ul class="list-group mb-4">
+                        <li class="list-group-item">
+                            <i class="fas fa-history me-2"></i><strong>História kalkulácií</strong> - zobrazí históriu vašich posledných kalkulácií
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-trash me-2"></i><strong>Vymazať históriu</strong> - vymaže celú históriu kalkulácií
+                        </li>
+                        <li class="list-group-item">
+                            <i class="fas fa-adjust me-2"></i><strong>Prepínač tém</strong> - prepína medzi svetlou a tmavou témou
+                        </li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zavrieť</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back to top button -->
+    <button type="button" class="btn btn-primary btn-floating btn-lg" id="btn-back-to-top">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html> 
