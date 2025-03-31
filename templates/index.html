@@ -3,200 +3,218 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Optimalizátor Rezania Skla</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <title>Optimalizácia Rezania Skla</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts - Barlow Condensed -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <!-- Vlastné CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body class="dark-theme">
-    <nav class="navbar navbar-expand-lg fixed-top">
+<body>
+    <!-- Navigačný panel -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container-fluid">
             <a class="navbar-brand" href="#">
-                <i class="fas fa-cut me-2"></i>
-                Optimalizátor Rezania Skla
+                <i class="fas fa-cut me-2"></i>Optimalizácia Rezania Skla
             </a>
-            <div class="ms-auto d-flex align-items-center">
-                <button class="btn btn-outline-light me-2" id="newCalculationBtn" title="Nový výpočet">
-                    <i class="fas fa-redo"></i> Nový výpočet
-                </button>
-                <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#historyModal" title="Zobraziť históriu">
-                    <i class="fas fa-history"></i> História
-                </button>
-                <a class="nav-link d-none d-lg-block" href="https://github.com/jimmytulipan/glass-cutting-optimizer" target="_blank" title="GitHub Repozitár">
-                    <i class="fab fa-github fs-4"></i>
-                </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <button id="resetBtn" class="btn btn-outline-light me-2"><i class="fas fa-redo-alt me-1"></i> Nový výpočet</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="btn btn-outline-light me-2" data-bs-toggle="modal" data-bs-target="#historyModal"><i class="fas fa-history me-1"></i> História</button>
+                    </li>
+                    <!-- <li class="nav-item">
+                        <button id="theme-toggle" class="btn btn-outline-light"><i class="fas fa-adjust me-1"></i> Zmeniť tému</button>
+                    </li> -->
+                </ul>
             </div>
         </div>
     </nav>
 
-    <div class="container-fluid main-container">
-        <div class="row justify-content-center">
-            <div class="col-lg-10 col-xl-8 main-content">
-                <div class="row">
-                    <div class="col-lg-6">
-                        <div class="card mb-4 dimension-card fade-in">
-                            <div class="card-header">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0"><i class="fas fa-ruler-combined me-2"></i>Zadanie rozmerov</h5>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <form id="optimizeForm">
-                                    <div class="form-group mb-3">
-                                        <label for="stockSize" class="form-label">Rozmer tabule:</label>
-                                        <select class="form-select" id="stockSize">
-                                            <option value="standard" selected>321 x 225 cm</option>
-                                            <option value="custom">Vlastný rozmer</option>
-                                        </select>
-                                    </div>
-                                    
-                                    <div class="row mb-3 d-none" id="customSizeFields">
-                                        <div class="col-6">
-                                            <label for="customWidth" class="form-label">Šírka (cm)</label>
-                                            <input type="number" class="form-control" id="customWidth" placeholder="Šírka">
-                                        </div>
-                                        <div class="col-6">
-                                            <label for="customHeight" class="form-label">Výška (cm)</label>
-                                            <input type="number" class="form-control" id="customHeight" placeholder="Výška">
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="form-group mb-3">
-                                        <label for="dimensions" class="form-label">Požadované rozmery skiel (cm):</label>
-                                        <textarea class="form-control" id="dimensions" rows="4" placeholder="Napr.: 100x50-80x60-120x40"></textarea>
-                                        <small class="form-text text-muted">Zadajte rozmery oddelené pomlčkou (-), formát: šírka x výška</small>
-                                    </div>
-                                    
-                                    <button type="submit" class="btn btn-primary w-100">
-                                        <i class="fas fa-cogs me-2"></i>Optimalizovať
-                                    </button>
-                                </form>
-                            </div>
+    <!-- Hlavný kontajner aplikácie -->
+    <div class="container-fluid main-container mt-4">
+        <div class="row g-4">
+            
+            <!-- ======== ĽAVÝ STĹPEC: VSTUPY ======== -->
+            <div class="col-lg-4">
+                <div class="input-column">
+                    <!-- Formulár pre optimalizáciu -->
+                    <div class="card mb-4 fade-in">
+                        <div class="card-header">
+                             <h5 class="mb-0"><i class="fas fa-ruler-combined me-2"></i> Zadať rozmery</h5>
                         </div>
-                        
-                        <div class="card mb-4 fade-in" style="animation-delay: 0.1s;">
-                            <div class="card-header">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-0"><i class="fas fa-euro-sign me-2"></i>Výpočet ceny</h5>
+                        <div class="card-body">
+                            <form id="optimizeForm">
+                                <!-- Rozmer tabule -->
+                                <div class="mb-3">
+                                    <label for="stockSize" class="form-label">Rozmer tabule:</label>
+                                    <select class="form-select" id="stockSize">
+                                        <option value="standard" selected>Štandardná (321 x 225 cm)</option>
+                                        <option value="custom">Vlastný rozmer</option>
+                                    </select>
                                 </div>
-                            </div>
-                            <div class="card-body">
-                                <form id="priceForm">
-                                    <div class="form-group mb-3">
-                                        <label for="glassCategory" class="form-label">Kategória skla:</label>
-                                        <select class="form-select" id="glassCategory"></select>
+                                <div id="customSizeFields" class="row g-2 mb-3 d-none">
+                                    <div class="col">
+                                        <input type="number" class="form-control" id="customWidth" placeholder="Šírka (cm)" step="0.1">
                                     </div>
-                                    
-                                    <div class="form-group mb-3">
-                                        <label for="glassType" class="form-label">Typ skla:</label>
-                                        <select class="form-select" id="glassType"></select>
+                                    <div class="col">
+                                        <input type="number" class="form-control" id="customHeight" placeholder="Výška (cm)" step="0.1">
                                     </div>
-                                    
-                                    <button type="submit" class="btn btn-success w-100">
-                                        <i class="fas fa-calculator me-2"></i>Vypočítať cenu
-                                    </button>
-                                </form>
-                            </div>
+                                </div>
+
+                                <!-- Požadované rozmery skiel -->
+                                <div class="mb-3">
+                                    <label for="dimensions" class="form-label">Požadované rozmery skiel (cm):</label>
+                                    <textarea class="form-control" id="dimensions" rows="5" placeholder="Zadajte rozmery oddelené pomlčkou (-), formát: šírka x výška"></textarea>
+                                    <small class="form-text">Napr: 100x50-60x40-...</small>
+                                </div>
+
+                                <button type="submit" class="btn btn-primary w-100"><i class="fas fa-cogs me-2"></i> Optimalizovať</button>
+                            </form>
                         </div>
                     </div>
-                    
-                    <div class="col-lg-6">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h2 class="section-title mb-0"><i class="fas fa-table me-2"></i> Výsledky optimalizácie</h2>
-                            <button id="pdfButton" class="btn btn-outline-secondary" disabled>
-                                <i class="fas fa-file-pdf"></i> PDF
-                            </button>
-                        </div>
 
-                        <div id="resultContainer" class="d-none fade-in" style="animation-delay: 0.2s;">
-                            <div class="card mb-4">
-                                <div class="card-body sheet-layout p-0">
-                                    <div id="optimizationResult" class="layout-container"></div>
-                                    <div class="result-summary">
-                                        <div class="d-flex justify-content-between mb-2">
-                                            <span><i class="fas fa-vector-square me-1"></i>Celková plocha:</span>
-                                            <span><strong id="totalArea">0</strong> m²</span>
-                                        </div>
-                                        <div class="d-flex justify-content-between">
-                                            <span><i class="fas fa-trash me-1"></i>Odpad:</span>
-                                            <span><strong id="wastePercentage">0</strong>%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    <!-- Formulár pre výpočet ceny (skrytý na začiatku) -->
+                    <div id="priceCalculatorSection" class="card mb-4 d-none fade-in" style="animation-delay: 0.1s;">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-calculator me-2"></i> Výpočet ceny</h5>
                         </div>
-                        
-                        <div id="priceResult" class="d-none fade-in" style="animation-delay: 0.3s;">
-                            <div class="card mb-4">
-                                <div class="card-header">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <h5 class="mb-0"><i class="fas fa-tag me-2"></i>Výsledok výpočtu ceny</h5>
-                                    </div>
+                        <div class="card-body">
+                            <form id="priceForm">
+                                <div class="mb-3">
+                                    <label for="glassCategory" class="form-label">Kategória skla:</label>
+                                    <select class="form-select" id="glassCategory">
+                                        <option selected disabled value="">Načítavam...</option>
+                                    </select>
                                 </div>
-                                <div class="card-body">
-                                    <h6 id="glassName" class="text-primary mb-3">-</h6>
-                                    <div class="price-item d-flex justify-content-between mb-2">
-                                        <div><i class="fas fa-check me-1"></i>Plocha skiel: <span id="area">0</span> m²</div>
-                                        <div><span id="areaPrice">0</span> €</div>
+                                <div class="mb-3">
+                                    <label for="glassType" class="form-label">Typ skla:</label>
+                                    <select class="form-select" id="glassType">
+                                        <option selected disabled value="">Najprv vyberte kategóriu</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-success w-100"><i class="fas fa-euro-sign me-2"></i> Vypočítať cenu</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- ======== PRAVÝ STĹPEC: VÝSLEDKY ======== -->
+            <div class="col-lg-8">
+                <div class="results-column">
+                    <!-- Kontajner pre výsledky optimalizácie (vizualizácia a súhrn) -->
+                    <div id="resultContainer" class="card d-none fade-in" style="animation-delay: 0.2s;">
+                         <div class="card-header">
+                             <div class="d-flex justify-content-between align-items-center">
+                                 <h5 class="mb-0"><i class="fas fa-table me-2"></i> Výsledky optimalizácie</h5>
+                                 <button id="pdfButton" class="btn btn-outline-secondary btn-sm" disabled>
+                                     <i class="fas fa-file-pdf"></i> PDF
+                                 </button>
+                             </div>
+                         </div>
+                         <div class="card-body p-0 d-flex flex-column">
+                            <!-- Kontajner pre SVG vizualizáciu -->
+                            <div id="optimizationResult" class="layout-container flex-grow-1"> 
+                                <!-- Sem sa vloží SVG cez JS -->
+                                <div class="placeholder-content text-center p-5 text-muted">
+                                    <i class="fas fa-border-all fa-3x mb-3"></i>
+                                    <p>Výsledky optimalizácie sa zobrazia tu.</p>
+                                </div>
+                            </div>
+                            <!-- Súhrn výsledkov pod vizualizáciou -->
+                            <div class="result-summary p-3">
+                                <div class="row g-3">
+                                    <div class="col-sm-6">
+                                        <div class="d-flex align-items-center">
+                                            <i class="fas fa-vector-square fa-lg me-2 text-primary"></i>
+                                            <div>
+                                                <small class="text-muted">Celková plocha:</small>
+                                                <div class="fs-5 fw-bold"><span id="totalArea">0</span> m²</div>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div class="price-item d-flex justify-content-between mb-2">
-                                        <div><i class="fas fa-recycle me-1"></i>Odpad: <span id="wasteArea">0</span> m²</div>
-                                        <div><span id="wastePrice">0</span> €</div>
-                                    </div>
-                                    <hr class="my-2">
-                                    <div class="price-item d-flex justify-content-between total-price">
-                                        <div><i class="fas fa-wallet me-1"></i>Celková cena:</div>
-                                        <div><span id="totalPrice">0</span> €</div>
+                                    <div class="col-sm-6">
+                                        <div class="d-flex align-items-center">
+                                             <i class="fas fa-trash fa-lg me-2 text-danger"></i>
+                                             <div>
+                                                <small class="text-muted">Odpad:</small>
+                                                <div class="fs-5 fw-bold"><span id="wastePercentage">0</span> %</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+                         </div>
+                    </div>
+                    
+                    <!-- Kontajner pre výsledok ceny (zobrazí sa pod výsledkami optimalizácie) -->
+                    <div id="priceResult" class="mt-4 d-none fade-in" style="animation-delay: 0.3s;">
+                        <!-- Obsah sa vloží cez JS -->
+                        <div class="card">
+                             <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-tag me-2"></i>Výsledok výpočtu ceny</h5>
+                             </div>
+                             <div class="card-body">
+                                <!-- Detail ceny bude tu -->
+                             </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-    
+
+    <!-- Päta stránky -->
+    <footer class="footer mt-auto py-3">
+        <div class="container text-center">
+            <span class="text-muted">&copy; 2024 Optimalizácia Rezania Skla. Všetky práva vyhradené.</span>
+        </div>
+    </footer>
+
+    <!-- Modálne okno pre históriu -->
     <div class="modal fade" id="historyModal" tabindex="-1" aria-labelledby="historyModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-scrollable modal-lg">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="historyModalLabel"><i class="fas fa-history me-2"></i>História kalkulácií</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title" id="historyModalLabel"><i class="fas fa-history me-2"></i> História výpočtov</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <div id="historyContainer" class="history-list-modal">
-                        <div class="text-center text-muted py-5" id="emptyHistory">
-                            Zatiaľ žiadna história
-                        </div>
+                    <div class="history-list-modal">
+                        <div class="text-center text-muted py-5" id="emptyHistory">Zatiaľ žiadna história</div>
+                        <!-- Položky histórie sa vložia sem -->
                     </div>
                 </div>
-                <div class="modal-footer justify-content-between">
-                    <button type="button" class="btn btn-outline-danger" id="clearHistoryBtnModal">
-                        <i class="fas fa-trash-alt me-1"></i> Vymazať históriu
-                    </button>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-danger" id="clearHistoryBtnModal"><i class="fas fa-trash-alt me-1"></i> Vymazať históriu</button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zavrieť</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <button type="button" class="btn btn-primary btn-floating" id="btn-back-to-top" title="Späť hore">
+    <!-- Kontajner pre alerty -->
+    <div class="alerts-container"></div>
+
+    <!-- Tlačidlo Späť hore -->
+    <button type="button" class="btn btn-primary btn-floating" id="btn-back-to-top">
         <i class="fas fa-arrow-up"></i>
     </button>
-    
-    <div class="alerts-container"></div>
-    
-    <footer class="footer">
-        <div class="container text-center">
-            <span>© 2024 Optimalizátor Rezania Skla - Vytvorené s <i class="fas fa-heart text-danger"></i></span>
-        </div>
-    </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Bootstrap JS Bundle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Vlastný JavaScript -->
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html> 
