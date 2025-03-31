@@ -455,7 +455,7 @@ body {
 .layout-visualization {
     width: 100%;
     height: auto;
-    max-height: 400px;
+    max-height: 550px;
     border: 1px solid var(--border-color);
     background-color: var(--bg-color);
     border-radius: 8px;
@@ -463,6 +463,26 @@ body {
     display: block;
     transition: border-color var(--transition-speed) ease, background-color var(--transition-speed) ease;
     overflow: hidden;
+}
+
+/* Zmenšenie na menších obrazovkách */
+@media (max-width: 991.98px) {
+    .layout-visualization {
+        max-height: 450px;
+    }
+    body {
+        padding-top: 60px;
+    }
+    .main-container {
+        padding: 1.5rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    .layout-visualization {
+        max-height: 350px;
+    }
+    /* ... ostatné mobilné štýly ... */
 }
 
 .layout-visualization rect {

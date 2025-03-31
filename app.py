@@ -1,10 +1,18 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, Response
 import numpy as np
 import os
 import logging
 from datetime import datetime
 from dataclasses import dataclass
 from typing import List, Tuple, Dict
+import io
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+from reportlab.lib.units import cm
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')
 
 # Konfigurácia
 STOCK_WIDTH = 321
@@ -257,5 +265,153 @@ def get_glass_types():
     
     return jsonify(glass_types.get(category_id, []))
 
+def draw_layout_to_buffer(stock_width, stock_height, layout, colors):
+    """Vykreslí layout do bufferu v pamäti pre PDF."""
+    
+    # Prispôsobenie veľkosti obrázku pre lepšie proporcie v PDF
+    fig_width_cm = 18
+    scale = fig_width_cm / stock_width
+    fig_height_cm = stock_height * scale
+    
+    fig = plt.figure(figsize=(fig_width_cm / 2.54, fig_height_cm / 2.54)) # Veľkosť v palcoch
+    ax = fig.add_subplot(111)
+    
+    # Vykreslenie tabule
+    ax.add_patch(plt.Rectangle((0, 0), stock_width, stock_height, 
+                             fill=False, color='black', linewidth=1))
+    
+    # Vykreslenie panelov
+    for i, panel in enumerate(layout):
+        x, y, w, h, rotated = panel['x'], panel['y'], panel['width'], panel['height'], panel['rotated']
+        color = colors[i % len(colors)]
+        ax.add_patch(plt.Rectangle((x, y), w, h, fill=True, color=color, alpha=0.7))
+        
+        # Prispôsobenie veľkosti fontu pre PDF
+        min_dim = min(w, h)
+        font_size = min_dim * scale * 6 # Prispôsobená veľkosť fontu
+        font_size = max(font_size, 4) # Minimálna veľkosť
+        font_size = min(font_size, 10) # Maximálna veľkosť
+        
+        ax.text(x + w/2, y + h/2, 
+               f'{w:.1f}x{h:.1f}{" (R)" if rotated else ""}', # Jednoduchší text pre PDF
+               horizontalalignment='center',
+               verticalalignment='center',
+               fontsize=font_size,
+               color='black') # Čierny text pre lepšiu viditeľnosť
+    
+    ax.set_xlim(-5, stock_width + 5)
+    ax.set_ylim(-5, stock_height + 5)
+    ax.set_aspect('equal')
+    plt.title(f'Rozloženie na tabuli {stock_width}x{stock_height} cm', fontsize=10)
+    plt.axis('off') # Skrytie osí
+    plt.tight_layout(pad=0.5)
+    
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=150) # Nižšie DPI pre PDF
+    buf.seek(0)
+    plt.close(fig) # Uzavretie figúry
+    
+    return buf
+
+@app.route('/api/generate-pdf', methods=['POST'])
+def generate_pdf():
+    try:
+        data = request.json
+        sheet_data = data.get('sheet_data')
+        price_data = data.get('price_data')
+
+        if not sheet_data:
+            return jsonify({'error': 'Chýbajú dáta o rozložení pre PDF.'}), 400
+        
+        layout = sheet_data.get('layout')
+        stock_width = sheet_data.get('stock_width', STOCK_WIDTH)
+        stock_height = sheet_data.get('stock_height', STOCK_HEIGHT)
+        total_area = sheet_data.get('total_area')
+        waste_percentage = sheet_data.get('waste_percentage')
+
+        if not layout:
+             return jsonify({'error': 'Chýbajú dáta o layoute v sheet_data.'}), 400
+
+        buffer = io.BytesIO()
+        c = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4 # Rozmery A4 v bodoch
+
+        # Nastavenie písma (ak je dostupný, inak default)
+        try:
+            c.setFont("Helvetica", 10)
+        except:
+            logger.warning("Font Helvetica nebol nájdený, používa sa predvolený.")
+            # Môžete tu nastaviť iný dostupný font
+
+        # Hlavička
+        c.setFont("Helvetica-Bold", 16)
+        c.drawString(2*cm, height - 2*cm, "Optimalizácia Rezania Skla")
+        c.setFont("Helvetica", 10)
+        c.drawString(2*cm, height - 2.7*cm, f"Dátum: {datetime.now().strftime('%d.%m.%Y %H:%M')}")
+        c.line(2*cm, height - 3*cm, width - 2*cm, height - 3*cm)
+
+        y_position = height - 4*cm
+        
+        # Súhrn optimalizácie
+        c.setFont("Helvetica-Bold", 12)
+        c.drawString(2*cm, y_position, "Súhrn optimalizácie:")
+        y_position -= 0.7*cm
+        c.setFont("Helvetica", 10)
+        c.drawString(2.5*cm, y_position, f"Rozmer tabule: {stock_width} x {stock_height} cm")
+        y_position -= 0.5*cm
+        c.drawString(2.5*cm, y_position, f"Celková plocha skiel: {total_area:.2f} m²")
+        y_position -= 0.5*cm
+        c.drawString(2.5*cm, y_position, f"Odpad: {waste_percentage:.1f}%")
+        y_position -= 1*cm
+
+        # Vykreslenie vizualizácie
+        colors = ['#4a76fd', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6c757d']
+        img_buffer = draw_layout_to_buffer(stock_width, stock_height, layout, colors)
+        img_reader = ImageReader(img_buffer)
+        
+        # Prispôsobenie veľkosti obrázka na stránke
+        img_width_on_page = width - 4*cm # Šírka obrázku
+        img_height_on_page = img_width_on_page * (stock_height / stock_width) # Výška podľa pomeru strán
+        
+        # Kontrola, či sa zmestí na zvyšok stránky
+        if y_position - img_height_on_page < 2*cm:
+            c.showPage() # Nová strana, ak sa nezmestí
+            y_position = height - 2*cm
+            c.setFont("Helvetica", 10) # Znova nastaviť font po showPage
+        
+        c.drawImage(img_reader, 2*cm, y_position - img_height_on_page, width=img_width_on_page, height=img_height_on_page)
+        y_position -= (img_height_on_page + 1*cm)
+
+        # Cenová kalkulácia (ak sú dáta)
+        if price_data:
+            if y_position < 8*cm:
+                 c.showPage() # Nová strana pre cenu
+                 y_position = height - 2*cm
+                 c.setFont("Helvetica", 10) 
+                 
+            c.setFont("Helvetica-Bold", 12)
+            c.drawString(2*cm, y_position, "Cenová kalkulácia:")
+            y_position -= 0.7*cm
+            c.setFont("Helvetica", 10)
+            c.drawString(2.5*cm, y_position, f"Typ skla: {price_data.get('glass_name', 'Neznáme')}")
+            y_position -= 0.5*cm
+            c.drawString(2.5*cm, y_position, f"Plocha skiel: {price_data.get('area', 0):.2f} m² = {price_data.get('area_price', 0):.2f} €")
+            y_position -= 0.5*cm
+            c.drawString(2.5*cm, y_position, f"Odpad: {price_data.get('waste_area', 0):.2f} m² = {price_data.get('waste_price', 0):.2f} €")
+            y_position -= 0.7*cm
+            c.setFont("Helvetica-Bold", 11)
+            total_p = price_data.get('area_price', 0) + price_data.get('waste_price', 0)
+            c.drawString(2.5*cm, y_position, f"Celková cena: {total_p:.2f} €")
+        
+        # Uloženie PDF
+        c.save()
+        buffer.seek(0)
+
+        return Response(buffer, mimetype='application/pdf', headers={'Content-Disposition': 'attachment;filename=optimalizacia_rezu.pdf'})
+
+    except Exception as e:
+        logger.error(f"Chyba pri generovaní PDF: {str(e)}", exc_info=True)
+        return jsonify({'error': f'Nastala chyba pri generovaní PDF: {str(e)}'}), 500
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=int(os.environ.get('PORT', 5000))) 
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=False) 

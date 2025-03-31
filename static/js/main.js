@@ -3,6 +3,7 @@ const apiBaseUrl = '';
 
 // Globálne premenné pre uloženie výsledkov optimalizácie
 let optimizationResult = null;
+let currentPriceData = null;
 
 // Pomocné funkcie
 function formatNumber(number, decimals = 2) {
@@ -10,7 +11,7 @@ function formatNumber(number, decimals = 2) {
 }
 
 // Funkcia pre zobrazenie alertov
-function showAlert(message, type = 'info') {
+function showAlert(message, type = 'info', duration = 3000) {
     const alertsContainer = document.querySelector('.alerts-container');
     if (!alertsContainer) {
         console.error('Alerts container not found!');
@@ -188,6 +189,7 @@ function startNewCalculation() {
     
     // Reset globálnej premennej
     optimizationResult = null;
+    currentPriceData = null;
     
     // Reset výberu kategórií a typov
     loadGlassCategories(); // Načítame kategórie a resetneme typy
@@ -255,6 +257,12 @@ function initEventListeners() {
     if (newCalculationBtn) {
         newCalculationBtn.addEventListener('click', startNewCalculation);
     }
+
+    // Tlačidlo Stiahnuť PDF
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+    if (downloadPdfBtn) {
+        downloadPdfBtn.addEventListener('click', handleDownloadPdf);
+    }
 }
 
 function handleOptimizeSubmit(event) {
@@ -302,10 +310,16 @@ function handleOptimizeSubmit(event) {
             return;
         }
         optimizationResult = data;
+        currentPriceData = null;
         displayOptimizationResults(data);
         resultContainer.scrollIntoView({ behavior: 'smooth', block: 'start' });
         addToHistory('Optimalizácia', `Tabuľa: ${stockWidth}x${stockHeight}, Počet kusov: ${data.sheets[0].layout.length}`);
         showAlert('Optimalizácia dokončená.', 'success');
+        // Aktivácia PDF tlačidla
+        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+        if (downloadPdfBtn) {
+            downloadPdfBtn.disabled = false;
+        }
     })
     .catch(error => {
         console.error('Chyba:', error);
@@ -500,6 +514,8 @@ function handlePriceCalculation(event) {
             addToHistory('Výpočet ceny', `Typ: ${data.price.glass_name}, Cena: ${formatNumber((data.price.area_price || 0) + (data.price.waste_price || 0))}€`);
             showAlert('Cena bola úspešne vypočítaná.', 'success');
             priceResultDiv.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            // Uloženie cenových dát pre PDF
+            currentPriceData = data.price;
 
         } else {
             showAlert('Nepodarilo sa vypočítať cenu. Skontrolujte, či ste vybrali typ skla.', 'warning');
@@ -523,4 +539,73 @@ function displayPriceCalculation(data) {
     
     const totalPrice = (data.area_price || 0) + (data.waste_price || 0);
     document.getElementById('totalPrice').textContent = formatNumber(totalPrice);
+}
+
+// Funkcia na stiahnutie PDF
+function handleDownloadPdf() {
+    if (!optimizationResult || !optimizationResult.sheets || optimizationResult.sheets.length === 0) {
+        showAlert('Nie sú dostupné žiadne výsledky optimalizácie na generovanie PDF.', 'warning');
+        return;
+    }
+    
+    const sheetData = optimizationResult.sheets[0];
+    const stockWidth = optimizationResult.stock_width; // Získanie z výsledku optimalizácie, ak je tam
+    const stockHeight = optimizationResult.stock_height; // Alebo použiť hodnoty z formulára
+    
+    // Pripravenie dát pre API
+    const pdfData = {
+        sheet_data: {
+            layout: sheetData.layout,
+            stock_width: stockWidth || 321, // Fallback
+            stock_height: stockHeight || 225, // Fallback
+            total_area: sheetData.total_area,
+            waste_percentage: sheetData.waste_percentage
+        },
+        price_data: currentPriceData // Použijeme uložené cenové dáta
+    };
+
+    const downloadBtn = document.getElementById('downloadPdfBtn');
+    const originalBtnText = downloadBtn.innerHTML;
+    downloadBtn.disabled = true;
+    downloadBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Generujem...';
+
+    fetch(`${apiBaseUrl}/api/generate-pdf`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pdfData)
+    })
+    .then(response => {
+        if (!response.ok) {
+            // Pokúsime sa získať chybovú správu z JSON odpovede
+            return response.json().then(err => { 
+                throw new Error(err.error || `Chyba servera: ${response.status}`); 
+            }).catch(() => {
+                 // Ak JSON nie je dostupný, vyhodíme všeobecnú chybu
+                throw new Error(`Chyba servera pri generovaní PDF: ${response.status}`);
+            });
+        }
+        return response.blob(); // Očakávame blob (binárne dáta)
+    })
+    .then(blob => {
+        // Vytvorenie odkazu a spustenie stiahnutia
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'optimalizacia_rezu.pdf';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        a.remove();
+        showAlert('PDF súbor bol vygenerovaný.', 'success');
+    })
+    .catch(error => {
+        console.error('Chyba pri generovaní PDF:', error);
+        showAlert(`Nastala chyba pri generovaní PDF: ${error.message}`, 'danger');
+    })
+    .finally(() => {
+        // Obnovenie tlačidla
+        downloadBtn.disabled = false;
+        downloadBtn.innerHTML = originalBtnText;
+    });
 } 
