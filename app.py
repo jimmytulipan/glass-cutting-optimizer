@@ -176,12 +176,7 @@ class CuttingOptimizer:
 
 @app.route('/')
 def index():
-    """Zobrazí landing page."""
-    return render_template('landing.html')
-
-@app.route('/app')
-def app_page():
-    """Zobrazí hlavnú aplikáciu."""
+    """Zobrazí hlavnú stránku aplikácie."""
     return render_template('index.html')
 
 @app.route('/static/<path:path>')
