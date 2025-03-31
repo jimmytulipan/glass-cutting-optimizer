@@ -616,9 +616,10 @@ body {
     justify-content: center;
     align-items: center;
     padding: 0;
-    margin-bottom: 1rem;
-    height: 65vh; /* Zvýšenie explicitnej výšky kontajnera */
-    min-height: 400px; /* Minimálna výška pre konzistenciu */
+    margin-bottom: 0; /* Odstránil som margin-bottom aby sa využil celý priestor */
+    height: 70vh; /* Zvýšenie výšky z 65vh na 70vh */
+    min-height: 450px; /* Zvýšenie minimálnej výšky pre lepšie vyplnenie priestoru */
+    width: 100%; /* Zaistenie, že sa využije celá šírka */
 }
 
 .result-summary {
@@ -628,7 +629,7 @@ body {
     box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
     transition: background-color var(--transition-speed) ease;
     font-size: 1rem;
-    margin-top: 0; /* Odstránenie horného okraja */
+    margin-top: 0;
 }
 
 /* Štýly pre layout container */
@@ -639,15 +640,26 @@ body {
     justify-content: center;
     align-items: center;
     overflow: hidden;
+    background-color: #161616; /* Tmavšie pozadie pre lepší kontrast */
 }
 
 /* Zabezpečenie, aby sa obsah neprelieval v sheet-layout */
 .sheet-layout {
     padding: 0 !important;
     overflow: hidden;
-    display: flex; /* Použitie flexboxu pre lepšie usporiadanie */
-    flex-direction: column; /* Elementy pod sebou */
-    height: 100%; /* Využitie celej výšky card-body */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%; /* Explicitne nastavené na 100% šírky */
+}
+
+/* Úprava pre SVG - vysoko prioritná úprava */
+.layout-visualization {
+    width: 100% !important; /* Enforcing 100% width */
+    height: 100% !important; /* Enforcing 100% height */
+    display: block; /* Ensure display as block */
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
 }
 
 /* Úprava pre SVG - text bude mať vlastný obrys, nepotrebujeme filter */

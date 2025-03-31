@@ -315,9 +315,9 @@ function handleOptimizeSubmit(event) {
         addToHistory('Optimalizácia', `Tabuľa: ${stockWidth}x${stockHeight}, Počet kusov: ${data.sheets[0].layout.length}`);
         showAlert('Optimalizácia dokončená.', 'success');
         // Aktivácia PDF tlačidla
-        const downloadPdfBtn = document.getElementById('downloadPdfBtn');
-        if (downloadPdfBtn) {
-            downloadPdfBtn.disabled = false;
+        const pdfButton = document.getElementById('pdfButton');
+        if (pdfButton) {
+            pdfButton.disabled = false;
         }
     })
     .catch(error => {
@@ -341,7 +341,7 @@ function displayOptimizationResults(data) {
         return;
     }
 
-    // --- Začiatok výpočtu hraníc pre zoom ---
+    // --- Určujeme hranice rozvrhnutých kusov ---
     let minX = sheet.stock_width, minY = sheet.stock_height, maxX = 0, maxY = 0;
     sheet.layout.forEach(panel => {
         minX = Math.min(minX, panel.x);
@@ -350,33 +350,56 @@ function displayOptimizationResults(data) {
         maxY = Math.max(maxY, panel.y + panel.height);
     });
 
-    // Pridanie malého okraja (paddingu) okolo kusov
-    const paddingPercentage = 0.05; // 5% padding
-    const contentWidth = maxX - minX;
-    const contentHeight = maxY - minY;
-    const paddingX = contentWidth * paddingPercentage;
-    const paddingY = contentHeight * paddingPercentage;
-
-    // Výpočet nového viewBoxu - orezaný na obsah s paddingom
-    const vbX = Math.max(0, minX - paddingX);
-    const vbY = Math.max(0, minY - paddingY);
-    const vbWidth = contentWidth + 2 * paddingX;
-    const vbHeight = contentHeight + 2 * paddingY;
-    // --- Koniec výpočtu hraníc pre zoom ---
+    // Rozmery používanej časti
+    const usedWidth = maxX - minX;
+    const usedHeight = maxY - minY;
+    
+    // Vypočítame pomer strán používanej časti
+    const usedAspectRatio = usedWidth / usedHeight;
+    
+    // Získame rozmery kontajnera - namiesto výpočtu stačí jeden rozmer, druhý sa prispôsobí pomeru strán
+    const containerWidth = optimizationResultDiv.offsetWidth;
+    const containerHeight = optimizationResultDiv.offsetHeight;
+    
+    // Určenie aktuálneho pomeru strán kontajnera
+    const containerAspectRatio = containerWidth / containerHeight;
     
     // Vytvorenie SVG elementu
     const svgElement = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svgElement.setAttribute('width', '100%');
     svgElement.setAttribute('height', '100%');
-    // Nastavenie vypočítaného viewBox pre zoom
-    svgElement.setAttribute('viewBox', `${vbX} ${vbY} ${vbWidth} ${vbHeight}`); 
+    
+    // Nastavenie viewBox pre plné využitie priestoru
+    // Rozhodneme, ako nastaviť viewBox na základe porovnania pomerov strán
+    let vbX, vbY, vbWidth, vbHeight;
+    
+    // Zabezpečíme, aby obsah vyplnil celú šírku a nemal prebytočné okraje
+    vbX = Math.max(0, minX);
+    vbY = Math.max(0, minY);
+    vbWidth = usedWidth;
+    vbHeight = usedHeight;
+    
+    // Pridanie paddingu (zmenšené pre lepšie vyplnenie okienka)
+    const paddingPercentage = 0.01; // Zmenšený padding z 5% na 1%
+    const paddingX = usedWidth * paddingPercentage;
+    const paddingY = usedHeight * paddingPercentage;
+    
+    vbX -= paddingX;
+    vbY -= paddingY;
+    vbWidth += 2 * paddingX;
+    vbHeight += 2 * paddingY;
+    
+    // Nastavíme SVG viewBox
+    svgElement.setAttribute('viewBox', `${vbX} ${vbY} ${vbWidth} ${vbHeight}`);
+    
+    // Zabezpečí, že obsah vyplní celý kontajner
     svgElement.setAttribute('preserveAspectRatio', 'xMidYMid meet');
     svgElement.classList.add('layout-visualization');
     
     // Farby pre jednotlivé panely
     const colors = ['#4a76fd', '#28a745', '#dc3545', '#ffc107', '#17a2b8', '#6c757d'];
     
-    // Vykreslenie jednotlivých panelov (už v rámci nového viewBoxu)
+    // Vykreslenie jednotlivých panelov
     sheet.layout.forEach((panel, index) => {
         const color = colors[index % colors.length];
         const x = panel.x;
@@ -391,14 +414,14 @@ function displayOptimizationResults(data) {
         rectPanel.setAttribute('height', height);
         rectPanel.setAttribute('fill', color);
         rectPanel.setAttribute('stroke', 'rgba(255,255,255,0.4)');
-        rectPanel.setAttribute('stroke-width', 0.3 * Math.sqrt(vbWidth / sheet.stock_width)); // Upraviť hrúbku čiary podľa zoomu
+        rectPanel.setAttribute('stroke-width', 0.3 * Math.sqrt(vbWidth / sheet.stock_width));
         svgElement.appendChild(rectPanel);
         
-        // Výpočet veľkosti fontu zostáva rovnaký, ale bude vyzerať väčší kvôli zoomu
+        // Výpočet veľkosti fontu
         const minDim = Math.min(width, height);
-        let fontSize = minDim * 0.45; 
-        fontSize = Math.max(fontSize, 7); 
-        fontSize = Math.min(fontSize, 20); 
+        let fontSize = minDim * 0.45;
+        fontSize = Math.max(fontSize, 7);
+        fontSize = Math.min(fontSize, 20);
         
         const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         textElement.setAttribute('x', x + width/2);
@@ -408,9 +431,8 @@ function displayOptimizationResults(data) {
         textElement.setAttribute('font-size', fontSize);
         textElement.setAttribute('fill', 'white');
         textElement.setAttribute('stroke', 'black');
-        // Mierne upravíme hrúbku obrysu podľa zoomu
         const strokeWidth = 0.3 * Math.sqrt(vbWidth / sheet.stock_width);
-        textElement.setAttribute('stroke-width', Math.max(strokeWidth, 0.1)); 
+        textElement.setAttribute('stroke-width', Math.max(strokeWidth, 0.1));
         textElement.setAttribute('paint-order', 'stroke');
         textElement.setAttribute('style', 'font-weight: 600;');
         textElement.textContent = `${panel.width}x${panel.height}${panel.rotated ? 'Ⓡ' : ''}`;
